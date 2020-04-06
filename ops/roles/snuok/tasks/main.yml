@@ -1,0 +1,21 @@
+---
+- name: Ensure web directory exists
+  become: yes
+  file:
+    path: /opt/web
+    state: directory
+    mode: '0755'
+
+- name: Ensure web directory exists
+  become: yes
+  file:
+    path: /opt/web/snuok
+    state: directory
+    mode: '0755'
+    owner: ansible
+    group: ansible
+
+- name: Ensure files are there
+  git:
+    repo: https://github.com/blottn/snuok.git
+    dest: /opt/web/snuok/

@@ -1,0 +1,29 @@
+- name: nginx up to date
+  become: true
+  apt:
+    name: nginx
+    state: latest
+
+- name: base nginx config
+  become: true
+  copy:
+    src: "{{ role_path }}/files/nginx.conf"
+    dest: /etc/nginx/nginx.conf
+    mode: 0644
+  notify:
+    - restart nginx
+
+- name: snuok config
+  become: true
+  copy:
+    src: "{{ role_path }}/files/snuok.conf"
+    dest: /etc/nginx/sites-available/snuok.conf
+    mode: 0644
+
+- name: enable snuok
+  become: true
+  file:
+    src: /etc/nginx/sites-available/snuok.conf
+    dest: /etc/nginx/sites-enabled/85-snuok.conf
+    state: link
+
