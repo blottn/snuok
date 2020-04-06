@@ -1,3 +1,6 @@
+const WIDTH = 480;
+const HEIGHT = 480;
+
 let app = new PIXI.Application({
     width: 480,
     height: 480,
@@ -80,7 +83,20 @@ function Vector(x,y) {
 
 	this.push = function(sprite) {
 		sprite.x += this.x * this.BLOCK;
+        if (sprite.x > WIDTH) {
+            sprite.x = 0;
+        }
+        if (sprite.x < 0) {
+            sprite.x += WIDTH;
+        }
+
 		sprite.y += this.y * this.BLOCK;
+        if (sprite.y > HEIGHT) {
+            sprite.y = 0;
+        }
+        if (sprite.y < 0) {
+            sprite.y += HEIGHT;
+        }
 	}
 }
 
