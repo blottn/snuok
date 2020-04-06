@@ -83,7 +83,7 @@ function Vector(x,y) {
 
 	this.push = function(sprite) {
 		sprite.x += this.x * this.BLOCK;
-        if (sprite.x > WIDTH) {
+        if (sprite.x > WIDTH - this.BLOCK) {
             sprite.x = 0;
         }
         if (sprite.x < 0) {
@@ -91,7 +91,7 @@ function Vector(x,y) {
         }
 
 		sprite.y += this.y * this.BLOCK;
-        if (sprite.y > HEIGHT) {
+        if (sprite.y > HEIGHT - this.BLOCK) {
             sprite.y = 0;
         }
         if (sprite.y < 0) {
