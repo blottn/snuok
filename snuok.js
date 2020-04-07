@@ -42,7 +42,7 @@ function setup() {
 	app.ticker.add(step.bind({}, world))
 }
 
-const UPDATE_PERIOD = 15;
+const UPDATE_PERIOD = 2;
 let sinceLastUpdate = 0;
 function step(world, delta) {
 	sinceLastUpdate += delta;
@@ -134,6 +134,9 @@ function Snuok(app) {
         head(start),
         body(start.left()),
         body(start.left().left()),
+        body(start.left().left().left()),
+        body(start.left().left().left().left()),
+        body(start.left().left().left().left().left()),
     ];
 
 	this.addToStage = function(app) {
