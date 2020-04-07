@@ -13,6 +13,13 @@ app.renderer.backgroundColor = "0xf4f4f4";
 
 $(document).ready(() => {
     $(".root")[0].appendChild(app.view);
+    let typistElement = $("#typistElement")[0]
+    let typer = new Typist(typistElement, {
+        letterInterval: 60,
+        textInterval:   3000,
+    });
+
+        
 })
 
 
