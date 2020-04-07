@@ -40,6 +40,10 @@ function setup() {
 		's': snuok.DOWN,
 		'a': snuok.LEFT,
 		'd': snuok.RIGHT,
+        37 : snuok.LEFT,
+        38 : snuok.UP,
+        39 : snuok.RIGHT,
+        40 : snuok.DOWN,
 	})
 	snuok.addToStage(app)
 
@@ -153,10 +157,13 @@ function Snuok(app) {
 	}
 
 	this.bindKeys = function(bindings) {
-		$(window).keypress((evt) => {
+		$(window).keydown((evt) => {
 			if (bindings[evt.key]) {
 				bindings[evt.key]();
 			}
+            if (bindings[evt.keyCode]) {
+                bindings[evt.keyCode]();
+            }
 		})
 	}
 
