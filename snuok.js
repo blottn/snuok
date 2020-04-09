@@ -1,5 +1,8 @@
 const WIDTH = 480;
 const HEIGHT = 480;
+const BLOCK = 24;
+const UPDATE_PERIOD = 50;
+
 
 let app = new PIXI.Application({
     width: 480,
@@ -48,35 +51,34 @@ function setup() {
 	app.ticker.add(step.bind({}, world))
 }
 
-const UPDATE_PERIOD = 2;
 let sinceLastUpdate = 0;
+
 function step(world, delta) {
 	sinceLastUpdate += delta;
 	if (sinceLastUpdate > UPDATE_PERIOD) {
-		snuok.update();
+		snuok.update(world);
 		sinceLastUpdate = 0;
 	}
 }
 
 function Vector(x,y) {
-	this.BLOCK = 24;
     this.x = x;
     this.y = y;
     
     this.left = function() {
-        return new Vector(this.x - this.BLOCK, this.y);
+        return new Vector(this.x - 1, this.y);
     }
 
     this.right = function() {
-        return new Vector(this.x + this.BLOCK, this.y);
+        return new Vector(this.x + 1, this.y);
     }
 
     this.up = function() {
-        return new Vector(this.x, this.y - this.BLOCK);
+        return new Vector(this.x, this.y - 1);
     }
 
     this.down = function() {
-        return new Vector(this.x, this.y + this.BLOCK);
+        return new Vector(this.x, this.y + 1);
     }
 	
 	this.plus = function(v) {
@@ -88,22 +90,27 @@ function Vector(x,y) {
 	}
 
 	this.push = function(sprite) {
-		sprite.x += this.x * this.BLOCK;
-        if (sprite.x > WIDTH - this.BLOCK) {
+		sprite.x += this.x * BLOCK;
+        if (sprite.x > WIDTH - BLOCK) {
             sprite.x = 0;
         }
         if (sprite.x < 0) {
             sprite.x += WIDTH;
         }
 
-		sprite.y += this.y * this.BLOCK;
-        if (sprite.y > HEIGHT - this.BLOCK) {
+		sprite.y += this.y * BLOCK;
+        if (sprite.y > HEIGHT - BLOCK) {
             sprite.y = 0;
         }
         if (sprite.y < 0) {
             sprite.y += HEIGHT;
         }
 	}
+
+    this.from = function(sprite) {
+        this.x = sprite.x;
+        this.y = sprite.y;
+    }
 }
 
 function createSprite(imageName, pos) {
@@ -113,6 +120,18 @@ function createSprite(imageName, pos) {
 	sprite.x = pos.x;
 	sprite.y = pos.y;
 	return sprite;
+}
+
+// Simplifies translation between world position and sprite position
+function Entity(worldPos, sprite) {
+    this.worldPos = worldPos;
+    this.sprite = sprite;
+
+    this.setWorldPos = function(newPos) {
+        this.worldPos = newPos;
+        this.sprite.x = worldPos.x
+    }
+
 }
 
 function Snuok(app) {
@@ -135,6 +154,8 @@ function Snuok(app) {
     let start = new Vector(0,0);
     let head = createSprite.bind({}, "snuok_head_pink.png")
     let body = createSprite.bind({}, "snuok_body.png")
+
+    this.parts = []
 
     this.parts = [
         head(start),
@@ -162,15 +183,34 @@ function Snuok(app) {
 		})
 	}
 
-	this.update = function() {
-		for (let i = this.parts.length - 1; i > 0; i-- ) {
-			this.parts[i].position.copyFrom(this.parts[i - 1].position);
-		}
+    this.addBodyPart = function() {
+    }
 
+	this.update = function(world) {
+        console.log(this.checkCollisions(world));
+        
+        if (this.state === "dead") {
+            return
+        }
+		for (let i = this.parts.length - 1; i > 0; i-- ) {
+		    this.parts[i].position.copyFrom(this.parts[i - 1].position);
+		}
+        
 		// execute direction update
 		this.direction = this.nextDirection;
 		// move head
 		this.direction.push(this.parts[0]);
 	}
+
+    this.checkCollisions = function(world) {
+        // check for death
+        for (let i = 1 ; i < this.parts.length; i++) {
+            if (this.parts[0].x == this.parts[i].x &&
+                this.parts[0].y == this.parts[i].y) {
+                // collision
+                return "dead";
+            }
+        }
+    }
 }
 
