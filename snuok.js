@@ -3,7 +3,6 @@ const MAP_HEIGHT = 20;
 const BLOCK = 24;
 const WIDTH = MAP_WIDTH * BLOCK;
 const HEIGHT = MAP_HEIGHT * BLOCK;
-let UPDATE_PERIOD = 100;
 
 
 let app = new PIXI.Application({
@@ -34,7 +33,7 @@ PIXI.loader
   .load(setup);
 
 function setup() {
-	snuok = new Snuok(2)
+	snuok = new Snuok(35) // time to reach a destination
 	snuok.bindKeys({
 		'w': snuok.UP,
 		's': snuok.DOWN,
@@ -56,11 +55,7 @@ function setup() {
 let sinceLastUpdate = 0;
 
 function step(world, delta) {
-	sinceLastUpdate += delta;
-	if (sinceLastUpdate > UPDATE_PERIOD) {
-		snuok.update(world);
-		sinceLastUpdate = 0;
-	}
+	snuok.update(world, delta);
 }
 
 class Vector {
@@ -122,24 +117,33 @@ function createSprite(imageName, pos) {
 
 // Simplifies translation between world position and sprite position
 class Entity {
-    constructor(worldPos, sprite) {
+    constructor(worldPos, sprite, dest) {
         this.worldPos = worldPos;
-        this.dest = worldPos.clone();
+        this.dest = dest;
         this.sprite = sprite;
 
+        this.lerpProgress = 0;
+
         this.setWorldPos(worldPos);
+        this.spriteAt(worldPos);
     }
 
     setWorldPos(newPos) {
         this.worldPos = newPos;
         this.worldPos.wrap();
+    }
 
-        this.sprite.x = this.worldPos.x * BLOCK;
-        this.sprite.y = this.worldPos.y * BLOCK;
+    spriteAt(pos) { // called by draw loop
+        this.sprite.x = pos.x * BLOCK;
+        this.sprite.y = pos.y * BLOCK;
     }
 
     setDest(dest) {
         this.dest = dest;
+    }
+
+    applyDirection(direction) {
+        this.dest = this.worldPos.plus(direction);
     }
 
     moveTo(entity) {
@@ -154,17 +158,24 @@ class Entity {
         app.stage.addChild(this.sprite);
     }
 
+    draw(lerpFactor) {
+        let deltaX = (this.dest.x - this.worldPos.x) * lerpFactor;
+        let deltaY = (this.dest.y - this.worldPos.y) * lerpFactor;
+        let newPos = new Vector(this.worldPos.x + deltaX, this.worldPos.y + deltaY);
+        this.spriteAt(newPos);
+    }
+
     collides(position) {
         return position.x == this.worldPos.x &&
             position.y == this.worldPos.y;
     }
 }
 
-function createPart(imageName, pos) {
+function createPart(imageName, pos, dest) {
     let sprite = new PIXI.Sprite(
         PIXI.loader.resources[imageName].texture
     );
-    return new Entity(pos, sprite);
+    return new Entity(pos, sprite, dest);
 }
 
 class Snuok {
@@ -175,6 +186,8 @@ class Snuok {
 	    this.RIGHT = this.turnDirection.bind(this, new Vector(1,0))
 
         this.speed = speed;
+        this.lerpProgress = 0;
+
 	    this.direction = new Vector(1,0);
 
         let start = new Vector(10,10);
@@ -186,12 +199,12 @@ class Snuok {
         this.parts = []
 
         this.parts = [
-            head(start),
-            body(start.left()),
-            body(start.left().left()),
-            body(start.left().left().left()),
-            body(start.left().left().left().left()),
-            body(start.left().left().left().left().left()),
+            head(start, start.plus(this.direction)),
+            body(start.left(), start),
+            body(start.left().left(), start.left()),
+            body(start.left().left().left(), start.left().left()),
+            body(start.left().left().left().left(), start.left().left().left()),
+            body(start.left().left().left().left().left(), start.left().left().left().left()),
         ];
     }
 
@@ -210,33 +223,47 @@ class Snuok {
     	})
     }
 
-	update(world) {
-    
-        if (this.state === "dead") {
-            return
+	update(world, delta) {
+        let updateState = this.updateLerp(delta);
+        let lerpFactor = this.lerpProgress / this.speed;
+        if (updateState) {
+            for (let i = this.parts.length - 1; i > 0 ; i--) {
+                this.parts[i].setWorldPos(this.parts[i - 1].worldPos.clone());
+                this.parts[i].setDest(this.parts[i - 1].dest.clone());
+            }
+		    this.direction = this.nextDirection;
+            this.parts[0].setWorldPos(this.parts[0].dest);
+            this.parts[0].applyDirection(this.direction);
+            let collided = this.checkCollisions();
+            if (collided) {
+                window.ghostTyper.display("Uh-Oh! You died :/");
+            }
         }
-		for (let i = this.parts.length - 1; i > 0; i-- ) {
-		    this.parts[i].moveTo(this.parts[i - 1]);
-		}
+
+        // do draw
+        this.parts.map((part) => part.draw(lerpFactor));
 
 		// execute direction update
-		this.direction = this.nextDirection;
         let collided = this.checkCollisions();
-        if (collided) {
-            window.ghostTyper.display("Uh-Oh! You died :/");
-        }
-		// move head
-	    this.parts[0].moveBy(this.direction);
+
 	}
     
     checkCollisions() {
         // check for death
-        let newHeadPos = this.parts[0].worldPos.plus(this.direction)
-            .wrap();
+        let newHeadPos = this.parts[0].dest.clone().wrap();
         return this.parts
             .slice(1)
             .reduce((collided, part) => collided || part.collides(newHeadPos) ? part : undefined,
                    undefined);
+    }
+
+    updateLerp(delta) {
+        this.lerpProgress += delta;
+        let moveToNext = this.lerpProgress > this.speed;
+        while (this.lerpProgress > this.speed) {
+            this.lerpProgress -= this.speed;
+        }
+        return moveToNext;
     }
 
     turnDirection(newDirection) {
