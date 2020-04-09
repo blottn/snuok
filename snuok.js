@@ -123,20 +123,31 @@ class Vector {
     }
 }
 
+class EventEmitter {
+    constructor() {
+        this.events = {};
+    }
 
+    addListener(evt, key, listener) {
+        if (!this.events[evt]) {
+            this.events[evt] = {};
+        }
 
-function createSprite(imageName, pos) {
-	let sprite = new PIXI.Sprite(
-		PIXI.loader.resources[imageName].texture
-	);
-	sprite.x = pos.x;
-	sprite.y = pos.y;
-	return sprite;
+        this.events[evt][key] = listener;
+    }
+
+    fire(evt, data) {
+        for (let key in this.events[evt]) {
+            this.events[evt][key](data);
+            delete this.events[evt][key];
+        }
+    }
 }
 
 // Simplifies translation between world position and sprite position
-class Entity {
+class Entity extends EventEmitter {
     constructor(worldPos, sprite, dest) {
+        super();
         this.worldPos = worldPos;
         this.dest = dest;
         this.sprite = sprite;
@@ -163,14 +174,6 @@ class Entity {
 
     applyDirection(direction) {
         this.dest = this.worldPos.plus(direction);
-    }
-
-    moveTo(entity) {
-        this.setWorldPos(entity.worldPos.clone());
-    }
-
-    moveBy(offset) {
-        this.setWorldPos(this.worldPos.plus(offset));
     }
 
     addTo(app) {
@@ -201,8 +204,9 @@ function createPart(zIndex, imageName, pos, dest) {
     return new Entity(pos, sprite, dest);
 }
 
-class Snuok {
+class Snuok extends EventEmitter {
     constructor (app, speed) { // not sure this needs to read the app state
+        super();
         this.app = app;
         this.speed = speed;
         this.lerpProgress = 0;
@@ -258,8 +262,8 @@ class Snuok {
         if (updateState) {
             // update positions and destinations
             for (let i = this.parts.length - 1; i > 0 ; i--) {
-                this.parts[i].setWorldPos(this.parts[i - 1].worldPos.clone());
-                this.parts[i].setDest(this.parts[i - 1].dest.clone());
+                this.parts[i].setWorldPos(this.parts[i - 1].worldPos);
+                this.parts[i].setDest(this.parts[i - 1].dest);
             }
 
             // update position and destination of head
@@ -321,4 +325,5 @@ class Snuok {
         this.corners[position.toString()] = corner;
     }
 }
+
 
