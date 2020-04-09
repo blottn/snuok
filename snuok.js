@@ -183,9 +183,6 @@ function Snuok(app) {
 		})
 	}
 
-    this.addBodyPart = function() {
-    }
-
 	this.update = function(world) {
         console.log(this.checkCollisions(world));
         
