@@ -1,12 +1,14 @@
-const WIDTH = 480;
-const HEIGHT = 480;
+const MAP_WIDTH = 20;
+const MAP_HEIGHT = 20;
 const BLOCK = 24;
-const UPDATE_PERIOD = 50;
+const WIDTH = MAP_WIDTH * BLOCK;
+const HEIGHT = MAP_HEIGHT * BLOCK;
+const UPDATE_PERIOD = 100;
 
 
 let app = new PIXI.Application({
-    width: 480,
-    height: 480,
+    width: WIDTH,
+    height: HEIGHT,
     antialias: true,
     transparent: false,
     resolution: 1,
@@ -88,6 +90,19 @@ function Vector(x,y) {
 	this.magnitude = function() {
 		return Math.abs(Math.sqrt((this.x*this.x) + (this.y*this.y)));
 	}
+    
+    this.wrap = function() {
+        if (this.x >= MAP_WIDTH)
+            this.x -= MAP_WIDTH;
+        if (this.x < 0)
+            this.x += MAP_WIDTH;
+
+        if (this.y >= MAP_HEIGHT)
+            this.y -= MAP_HEIGHT;
+        if (this.y < 0)
+            this.y += MAP_HEIGHT;
+        return this;
+    }
 
 	this.push = function(sprite) {
 		sprite.x += this.x * BLOCK;
@@ -107,9 +122,8 @@ function Vector(x,y) {
         }
 	}
 
-    this.from = function(sprite) {
-        this.x = sprite.x;
-        this.y = sprite.y;
+    this.clone = function() {
+        return new Vector(this.x, this.y);
     }
 }
 
@@ -123,91 +137,124 @@ function createSprite(imageName, pos) {
 }
 
 // Simplifies translation between world position and sprite position
-function Entity(worldPos, sprite) {
-    this.worldPos = worldPos;
-    this.sprite = sprite;
+class Entity {
+    constructor(worldPos, sprite) {
+        this.worldPos = worldPos;
+        this.sprite = sprite;
 
-    this.setWorldPos = function(newPos) {
-        this.worldPos = newPos;
-        this.sprite.x = worldPos.x
+        this.setWorldPos(worldPos);
     }
 
+    setWorldPos(newPos) {
+        this.worldPos = newPos;
+        this.worldPos.wrap();
+
+        this.sprite.x = this.worldPos.x * BLOCK;
+        this.sprite.y = this.worldPos.y * BLOCK;
+    }
+
+    moveTo(entity) {
+        this.setWorldPos(entity.worldPos.clone());
+    }
+
+    moveBy(offset) {
+        this.setWorldPos(this.worldPos.plus(offset));
+    }
+
+    addTo(app) {
+        app.stage.addChild(this.sprite);
+    }
+
+    collides(position) {
+        return position.x == this.worldPos.x &&
+            position.y == this.worldPos.y;
+    }
 }
 
-function Snuok(app) {
-	this.UP_DIR
-	this.UP = function() {this.setDirection(new Vector(0,-1))}.bind(this);
-	this.DOWN = function() {this.setDirection(new Vector(0,1))}.bind(this);
-	this.LEFT = function() {this.setDirection(new Vector(-1,0))}.bind(this);
-	this.RIGHT = function() {this.setDirection(new Vector(1,0))}.bind(this);
+function createPart(imageName, pos) {
+    let sprite = new PIXI.Sprite(
+        PIXI.loader.resources[imageName].texture
+    );
+    return new Entity(pos, sprite);
+}
 
-    this.app = app;
-	this.direction = new Vector(1,0);
-	this.nextDirection = this.direction;
-	this.setDirection = function(newDirection) {
-		const err = 0.0001; // arbitrary error in case of float magic
-		if (this.direction.plus(newDirection).magnitude() >= err) { // not opposites
-			this.nextDirection = newDirection;
-		}
-	}
+class Snuok {
+    constructor (app) { // not sure this needs to read the app state
+	    this.UP = this.setDirection.bind(this, new Vector(0,-1))
+	    this.DOWN = this.setDirection.bind(this, new Vector(0,1))
+	    this.LEFT = this.setDirection.bind(this, new Vector(-1,0))
+	    this.RIGHT = this.setDirection.bind(this, new Vector(1,0))
 
-    let start = new Vector(0,0);
-    let head = createSprite.bind({}, "snuok_head_pink.png")
-    let body = createSprite.bind({}, "snuok_body.png")
+        this.app = app;
+	    this.direction = new Vector(1,0);
 
-    this.parts = []
+        let start = new Vector(10,10);
+        let head = createPart.bind({}, "snuok_head_pink.png")
+        let body = createPart.bind({}, "snuok_body.png")
 
-    this.parts = [
-        head(start),
-        body(start.left()),
-        body(start.left().left()),
-        body(start.left().left().left()),
-        body(start.left().left().left().left()),
-        body(start.left().left().left().left().left()),
-    ];
 
-	this.addToStage = function(app) {
-		this.parts.map((sprite) => {
-			app.stage.addChild(sprite);
-		});
-	}
+	    this.nextDirection = this.direction;
+        this.parts = []
 
-	this.bindKeys = function(bindings) {
-		$(window).keydown((evt) => {
-			if (bindings[evt.key]) {
-				bindings[evt.key]();
-			}
+        this.parts = [
+            head(start),
+            body(start.left()),
+            body(start.left().left()),
+            body(start.left().left().left()),
+            body(start.left().left().left().left()),
+            body(start.left().left().left().left().left()),
+        ];
+    }
+
+    addToStage(app) {
+    	this.parts.map((entity) => entity.addTo(app))
+    }
+
+    bindKeys(bindings) {
+    	$(window).keydown((evt) => {
+    		if (bindings[evt.key]) {
+    			bindings[evt.key]();
+    		}
             if (bindings[evt.keyCode]) {
                 bindings[evt.keyCode]();
             }
-		})
-	}
+    	})
+    }
 
-	this.update = function(world) {
-        console.log(this.checkCollisions(world));
-        
+	update(world) {
+    
         if (this.state === "dead") {
             return
         }
 		for (let i = this.parts.length - 1; i > 0; i-- ) {
-		    this.parts[i].position.copyFrom(this.parts[i - 1].position);
+		    this.parts[i].moveTo(this.parts[i - 1]);
 		}
-        
+
 		// execute direction update
 		this.direction = this.nextDirection;
-		// move head
-		this.direction.push(this.parts[0]);
-	}
-
-    this.checkCollisions = function(world) {
-        // check for death
-        for (let i = 1 ; i < this.parts.length; i++) {
-            if (this.parts[0].x == this.parts[i].x &&
-                this.parts[0].y == this.parts[i].y) {
-                // collision
-                return "dead";
-            }
+        let collided = this.checkCollisions();
+        if (collided) {
+            window.ghostTyper.display("Uh-Oh! You died :/");
         }
+		// move head
+	    this.parts[0].moveBy(this.direction);
+	}
+    
+    checkCollisions() {
+        // check for death
+        let newHeadPos = this.parts[0].worldPos.plus(this.direction)
+            .wrap();
+        return this.parts
+            .slice(1)
+            .reduce((collided, part) => collided || part.collides(newHeadPos) ? part : undefined,
+                   undefined);
     }
+
+    setDirection(newDirection) {
+	    const err = 0.0001; // arbitrary error in case of float magic
+	    if (this.direction.plus(newDirection).magnitude() >= err) { // not opposites
+		    this.nextDirection = newDirection;
+	    }
+	}
 }
 
