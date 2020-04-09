@@ -159,17 +159,20 @@ class Entity extends EventEmitter {
     }
 
     setWorldPos(newPos) {
-        this.worldPos = newPos;
+        this.worldPos.x = newPos.x;
+        this.worldPos.y = newPos.y;
         this.worldPos.wrap();
     }
 
     spriteAt(pos) { // called by draw loop
+        pos.wrap();
         this.sprite.x = pos.x * BLOCK;
         this.sprite.y = pos.y * BLOCK;
     }
 
     setDest(dest) {
-        this.dest = dest;
+        this.dest.x = dest.x;
+        this.dest.y = dest.y;
     }
 
     applyDirection(direction) {
@@ -180,10 +183,17 @@ class Entity extends EventEmitter {
         app.stage.addChild(this.sprite);
     }
 
+    update(next) {
+        this.setWorldPos(this.dest);
+        this.setDest(next);
+    }
+
     draw(lerpFactor) {
         let deltaX = (this.dest.x - this.worldPos.x) * lerpFactor;
         let deltaY = (this.dest.y - this.worldPos.y) * lerpFactor;
-        let newPos = new Vector(this.worldPos.x + deltaX, this.worldPos.y + deltaY);
+        let newPos = new Vector(this.worldPos.x + deltaX,
+                                this.worldPos.y + deltaY);
+        
         this.spriteAt(newPos);
     }
 
@@ -231,7 +241,7 @@ class Snuok extends EventEmitter {
         ];
         for (let i = 0; i < 8 ; i++) {
             let ent = this.body(this.parts[i].worldPos.left(), 
-                                this.parts[i].worldPos);
+                                this.parts[i].worldPos.clone());
             this.parts.push(ent);
         }
 
@@ -262,8 +272,10 @@ class Snuok extends EventEmitter {
         if (updateState) {
             // update positions and destinations
             for (let i = this.parts.length - 1; i > 0 ; i--) {
-                this.parts[i].setWorldPos(this.parts[i - 1].worldPos);
-                this.parts[i].setDest(this.parts[i - 1].dest);
+                if (i == 1 && this.parts[1].worldPos.x == 18) {
+                    console.log(this.parts[1]);
+                }
+                this.parts[i].update(this.parts[i - 1].dest);
             }
 
             // update position and destination of head
