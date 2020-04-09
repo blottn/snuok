@@ -63,35 +63,37 @@ function step(world, delta) {
 	}
 }
 
-function Vector(x,y) {
-    this.x = x;
-    this.y = y;
+class Vector {
+    constructor(x,y) {
+        this.x = x;
+        this.y = y;
+    }
     
-    this.left = function() {
+    left() {
         return new Vector(this.x - 1, this.y);
     }
 
-    this.right = function() {
+    right() {
         return new Vector(this.x + 1, this.y);
     }
 
-    this.up = function() {
+    up() {
         return new Vector(this.x, this.y - 1);
     }
 
-    this.down = function() {
+    down() {
         return new Vector(this.x, this.y + 1);
     }
 	
-	this.plus = function(v) {
+	plus(v) {
 		return new Vector(v.x + this.x, v.y + this.y);
 	}
 	
-	this.magnitude = function() {
+	magnitude() {
 		return Math.abs(Math.sqrt((this.x*this.x) + (this.y*this.y)));
 	}
     
-    this.wrap = function() {
+    wrap() {
         if (this.x >= MAP_WIDTH)
             this.x -= MAP_WIDTH;
         if (this.x < 0)
@@ -104,7 +106,7 @@ function Vector(x,y) {
         return this;
     }
 
-	this.push = function(sprite) {
+	push(sprite) {
 		sprite.x += this.x * BLOCK;
         if (sprite.x > WIDTH - BLOCK) {
             sprite.x = 0;
@@ -122,7 +124,7 @@ function Vector(x,y) {
         }
 	}
 
-    this.clone = function() {
+    clone() {
         return new Vector(this.x, this.y);
     }
 }
