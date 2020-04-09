@@ -106,24 +106,6 @@ class Vector {
         return this;
     }
 
-	push(sprite) {
-		sprite.x += this.x * BLOCK;
-        if (sprite.x > WIDTH - BLOCK) {
-            sprite.x = 0;
-        }
-        if (sprite.x < 0) {
-            sprite.x += WIDTH;
-        }
-
-		sprite.y += this.y * BLOCK;
-        if (sprite.y > HEIGHT - BLOCK) {
-            sprite.y = 0;
-        }
-        if (sprite.y < 0) {
-            sprite.y += HEIGHT;
-        }
-	}
-
     clone() {
         return new Vector(this.x, this.y);
     }
@@ -142,6 +124,7 @@ function createSprite(imageName, pos) {
 class Entity {
     constructor(worldPos, sprite) {
         this.worldPos = worldPos;
+        this.dest = worldPos.clone();
         this.sprite = sprite;
 
         this.setWorldPos(worldPos);
@@ -153,6 +136,10 @@ class Entity {
 
         this.sprite.x = this.worldPos.x * BLOCK;
         this.sprite.y = this.worldPos.y * BLOCK;
+    }
+
+    setDest(dest) {
+        this.dest = dest;
     }
 
     moveTo(entity) {
