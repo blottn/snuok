@@ -3,7 +3,7 @@ const MAP_HEIGHT = 20;
 const BLOCK = 24;
 const WIDTH = MAP_WIDTH * BLOCK;
 const HEIGHT = MAP_HEIGHT * BLOCK;
-const UPDATE_PERIOD = 100;
+let UPDATE_PERIOD = 100;
 
 
 let app = new PIXI.Application({
@@ -34,7 +34,7 @@ PIXI.loader
   .load(setup);
 
 function setup() {
-	snuok = new Snuok(app)
+	snuok = new Snuok(2)
 	snuok.bindKeys({
 		'w': snuok.UP,
 		's': snuok.DOWN,
@@ -179,13 +179,13 @@ function createPart(imageName, pos) {
 }
 
 class Snuok {
-    constructor (app) { // not sure this needs to read the app state
-	    this.UP = this.setDirection.bind(this, new Vector(0,-1))
-	    this.DOWN = this.setDirection.bind(this, new Vector(0,1))
-	    this.LEFT = this.setDirection.bind(this, new Vector(-1,0))
-	    this.RIGHT = this.setDirection.bind(this, new Vector(1,0))
+    constructor (speed) { // not sure this needs to read the app state
+	    this.UP = this.turnDirection.bind(this, new Vector(0,-1))
+	    this.DOWN = this.turnDirection.bind(this, new Vector(0,1))
+	    this.LEFT = this.turnDirection.bind(this, new Vector(-1,0))
+	    this.RIGHT = this.turnDirection.bind(this, new Vector(1,0))
 
-        this.app = app;
+        this.speed = speed;
 	    this.direction = new Vector(1,0);
 
         let start = new Vector(10,10);
@@ -250,7 +250,7 @@ class Snuok {
                    undefined);
     }
 
-    setDirection(newDirection) {
+    turnDirection(newDirection) {
 	    const err = 0.0001; // arbitrary error in case of float magic
 	    if (this.direction.plus(newDirection).magnitude() >= err) { // not opposites
 		    this.nextDirection = newDirection;
