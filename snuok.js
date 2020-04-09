@@ -14,6 +14,7 @@ let app = new PIXI.Application({
 });
 
 app.renderer.backgroundColor = "0xf4f4f4";
+app.stage.sortableChildren = true;
 
 $(document).ready(() => {
     $(".root")[0].appendChild(app.view);
@@ -33,7 +34,7 @@ PIXI.loader
   .load(setup);
 
 function setup() {
-	snuok = new Snuok(35) // time to reach a destination
+	snuok = new Snuok(app, 15) // time to reach a destination
 	snuok.bindKeys({
 		'w': snuok.UP,
 		's': snuok.DOWN,
@@ -79,16 +80,7 @@ class Vector {
     down() {
         return new Vector(this.x, this.y + 1);
     }
-	
-	plus(v) {
-		return new Vector(v.x + this.x, v.y + this.y);
-	}
-	
-	magnitude() {
-		return Math.abs(Math.sqrt((this.x*this.x) + (this.y*this.y)));
-	}
-    
-    wrap() {
+	wrap() {
         if (this.x >= MAP_WIDTH)
             this.x -= MAP_WIDTH;
         if (this.x < 0)
@@ -101,10 +93,37 @@ class Vector {
         return this;
     }
 
+
+	plus(v) {
+		return new Vector(v.x + this.x, v.y + this.y);
+	}
+	
+	magnitude() {
+		return Math.abs(Math.sqrt((this.x*this.x) + (this.y*this.y)));
+	}
+    
     clone() {
         return new Vector(this.x, this.y);
     }
+
+    equals(v) {
+        return this.x == v.x && this.y == v.y;
+    }
+
+    toString() {
+        return `${this.x}.${this.y}`;
+    }
+
+    static fromString(input) {
+        let [xtxt, yTxt] = string.split('.');
+        return new Vector(
+            Integer.parseInt(xTxt),
+            Integer.parseInt(yTxt)
+        );
+    }
 }
+
+
 
 function createSprite(imageName, pos) {
 	let sprite = new PIXI.Sprite(
@@ -166,46 +185,52 @@ class Entity {
     }
 
     collides(position) {
-        return position.x == this.worldPos.x &&
-            position.y == this.worldPos.y;
+        return position.equals(this.worldPos);
+    }
+
+    destroy() {
+        this.sprite.destroy();
     }
 }
 
-function createPart(imageName, pos, dest) {
+function createPart(zIndex, imageName, pos, dest) {
     let sprite = new PIXI.Sprite(
         PIXI.loader.resources[imageName].texture
     );
+    sprite.zIndex = zIndex;
     return new Entity(pos, sprite, dest);
 }
 
 class Snuok {
-    constructor (speed) { // not sure this needs to read the app state
+    constructor (app, speed) { // not sure this needs to read the app state
+        this.app = app;
+        this.speed = speed;
+        this.lerpProgress = 0;
+
+
+	    this.direction = new Vector(1,0);
+	    this.nextDirection = this.direction;
+
 	    this.UP = this.turnDirection.bind(this, new Vector(0,-1))
 	    this.DOWN = this.turnDirection.bind(this, new Vector(0,1))
 	    this.LEFT = this.turnDirection.bind(this, new Vector(-1,0))
 	    this.RIGHT = this.turnDirection.bind(this, new Vector(1,0))
 
-        this.speed = speed;
-        this.lerpProgress = 0;
-
-	    this.direction = new Vector(1,0);
+        this.head = createPart.bind({}, 100, "snuok_head_pink.png")
+        this.body = createPart.bind({}, 50, "snuok_body.png")
 
         let start = new Vector(10,10);
-        let head = createPart.bind({}, "snuok_head_pink.png")
-        let body = createPart.bind({}, "snuok_body.png")
-
-
-	    this.nextDirection = this.direction;
-        this.parts = []
-
+        
+        this.corners = {};
         this.parts = [
-            head(start, start.plus(this.direction)),
-            body(start.left(), start),
-            body(start.left().left(), start.left()),
-            body(start.left().left().left(), start.left().left()),
-            body(start.left().left().left().left(), start.left().left().left()),
-            body(start.left().left().left().left().left(), start.left().left().left().left()),
+            this.head(start, start.plus(this.direction))
         ];
+        for (let i = 0; i < 8 ; i++) {
+            let ent = this.body(this.parts[i].worldPos.left(), 
+                                this.parts[i].worldPos);
+            this.parts.push(ent);
+        }
+
     }
 
     addToStage(app) {
@@ -224,28 +249,45 @@ class Snuok {
     }
 
 	update(world, delta) {
+        if (this.dead) {
+            return;
+        }
         let updateState = this.updateLerp(delta);
         let lerpFactor = this.lerpProgress / this.speed;
+
         if (updateState) {
+            // update positions and destinations
             for (let i = this.parts.length - 1; i > 0 ; i--) {
                 this.parts[i].setWorldPos(this.parts[i - 1].worldPos.clone());
                 this.parts[i].setDest(this.parts[i - 1].dest.clone());
             }
-		    this.direction = this.nextDirection;
+
+            // update position and destination of head
+            if (!this.direction.equals(this.nextDirection)) {
+                this.addCornerAt(this.parts[0].dest);
+		        this.direction = this.nextDirection;
+            }
             this.parts[0].setWorldPos(this.parts[0].dest);
             this.parts[0].applyDirection(this.direction);
+            
+            // check if there's a tail corner to be deleted
+            let tail = this.parts[this.parts.length - 1];
+            let tailPos = tail.worldPos.toString();
+            if (this.corners[tailPos]) {
+                this.corners[tailPos].destroy();
+                delete this.corners[tailPos];
+            }
+
+            // check for collisions
             let collided = this.checkCollisions();
             if (collided) {
+                this.dead = true;
                 window.ghostTyper.display("Uh-Oh! You died :/");
             }
         }
 
         // do draw
         this.parts.map((part) => part.draw(lerpFactor));
-
-		// execute direction update
-        let collided = this.checkCollisions();
-
 	}
     
     checkCollisions() {
@@ -269,8 +311,14 @@ class Snuok {
     turnDirection(newDirection) {
 	    const err = 0.0001; // arbitrary error in case of float magic
 	    if (this.direction.plus(newDirection).magnitude() >= err) { // not opposites
-		    this.nextDirection = newDirection;
+       		this.nextDirection = newDirection;
 	    }
 	}
+
+    addCornerAt(position) {
+        let corner = this.body(position, position);
+        corner.addTo(this.app);
+        this.corners[position.toString()] = corner;
+    }
 }
 

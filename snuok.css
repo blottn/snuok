@@ -1,3 +1,7 @@
+#ghost-anchor {
+    height: 70px;
+}
+
 .balancer-horiz {
     margin:auto;
     display: flex;
