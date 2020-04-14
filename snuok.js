@@ -80,6 +80,29 @@ class Vector {
     down() {
         return new Vector(this.x, this.y + 1);
     }
+
+    outOfBounds() {
+        return this.x >= MAP_WIDTH ||
+            this.x < 0 ||
+            this.y >= MAP_HEIGHT ||
+            this.y < 0;
+    }
+
+    getWrappingVector() {
+        let dX = 0;
+        let dY = 0;
+
+        if (this.x >= MAP_WIDTH)
+            dX = -MAP_WIDTH;
+        if (this.x < 0)
+            dX = MAP_WIDTH;
+        if (this.y >= MAP_HEIGHT)
+            dY = -MAP_HEIGHT;
+        if (this.y < 0)
+            dY = MAP_HEIGHT;
+        return new Vector(dX, dY);
+    }
+
 	wrap() {
         if (this.x >= MAP_WIDTH)
             this.x -= MAP_WIDTH;
@@ -92,7 +115,6 @@ class Vector {
             this.y += MAP_HEIGHT;
         return this;
     }
-
 
 	plus(v) {
 		return new Vector(v.x + this.x, v.y + this.y);
@@ -161,7 +183,6 @@ class Entity extends EventEmitter {
     setWorldPos(newPos) {
         this.worldPos.x = newPos.x;
         this.worldPos.y = newPos.y;
-        this.worldPos.wrap();
     }
 
     spriteAt(pos) { // called by draw loop
@@ -184,8 +205,11 @@ class Entity extends EventEmitter {
     }
 
     update(next) {
+        if (next.outOfBounds()) {
+        }
         this.setWorldPos(this.dest);
         this.setDest(next);
+        return this.worldPos.clone();
     }
 
     draw(lerpFactor) {
@@ -270,12 +294,10 @@ class Snuok extends EventEmitter {
         let lerpFactor = this.lerpProgress / this.speed;
 
         if (updateState) {
-            // update positions and destinations
-            for (let i = this.parts.length - 1; i > 0 ; i--) {
-                if (i == 1 && this.parts[1].worldPos.x == 18) {
-                    console.log(this.parts[1]);
-                }
-                this.parts[i].update(this.parts[i - 1].dest);
+            // update positions and destinations 
+            let next = this.parts[0].dest;
+            for (let i = 1; i < this.parts.length ; i++) {
+                next = this.parts[i].update(next);
             }
 
             // update position and destination of head
@@ -283,8 +305,10 @@ class Snuok extends EventEmitter {
                 this.addCornerAt(this.parts[0].dest);
 		        this.direction = this.nextDirection;
             }
-            this.parts[0].setWorldPos(this.parts[0].dest);
-            this.parts[0].applyDirection(this.direction);
+
+            this.parts[0].update(
+                this.parts[0].dest.plus(this.direction)
+            );
             
             // check if there's a tail corner to be deleted
             let tail = this.parts[this.parts.length - 1];
