@@ -4,6 +4,14 @@ const BLOCK = 24;
 const WIDTH = MAP_WIDTH * BLOCK;
 const HEIGHT = MAP_HEIGHT * BLOCK;
 
+let worldConfig = {MAP_WIDTH, MAP_HEIGHT, BLOCK};
+
+/*const filterCode = `void main(void) {
+   gl_FragColor = vec4(0.0, 1.0, 0.0, 1.0);
+}`;
+
+let coloredFilter = new PIXI.Filter(null, filterCode); Keeping this cause im bad at remembering stuff*/
+
 
 let app = new PIXI.Application({
     width: WIDTH,
@@ -34,7 +42,9 @@ PIXI.loader
   .load(setup);
 
 function setup() {
-	snuok = new Snuok(app, 15) // time to reach a destination
+    let len = 4;
+    let lerp_time = 15;
+	snuok = new WrapperSnuok(app, new Vector(10,10), len, lerp_time) // time to reach a destination
 	snuok.bindKeys({
 		'w': snuok.UP,
 		's': snuok.DOWN,
@@ -117,8 +127,12 @@ class Vector {
     }
 
 	plus(v) {
-		return new Vector(v.x + this.x, v.y + this.y);
+		return new Vector(this.x + v.x, this.y + v.y);
 	}
+
+    minus(v) {
+        return new Vector(this.x - v.x, this.y - v.y);
+    }
 	
 	magnitude() {
 		return Math.abs(Math.sqrt((this.x*this.x) + (this.y*this.y)));
@@ -145,34 +159,18 @@ class Vector {
     }
 }
 
-class EventEmitter {
-    constructor() {
-        this.events = {};
-    }
-
-    addListener(evt, key, listener) {
-        if (!this.events[evt]) {
-            this.events[evt] = {};
-        }
-
-        this.events[evt][key] = listener;
-    }
-
-    fire(evt, data) {
-        for (let key in this.events[evt]) {
-            this.events[evt][key](data);
-            delete this.events[evt][key];
-        }
-    }
-}
-
 // Simplifies translation between world position and sprite position
-class Entity extends EventEmitter {
+class Entity {
     constructor(worldPos, sprite, dest) {
-        super();
         this.worldPos = worldPos;
         this.dest = dest;
-        this.sprite = sprite;
+
+        this.sprites = {}
+        this.sprites['centre'] = sprite;
+        this.sprites['up'] = PIXI.Sprite.from(sprite.texture);
+        this.sprites['down'] = PIXI.Sprite.from(sprite.texture);
+        this.sprites['left'] = PIXI.Sprite.from(sprite.texture);
+        this.sprites['right'] = PIXI.Sprite.from(sprite.texture);
 
         this.lerpProgress = 0;
 
@@ -186,9 +184,24 @@ class Entity extends EventEmitter {
     }
 
     spriteAt(pos) { // called by draw loop
-        pos.wrap();
-        this.sprite.x = pos.x * BLOCK;
-        this.sprite.y = pos.y * BLOCK;
+        this.setSpritePos(this.sprites['centre'], pos);
+        this.setSpritePos(this.sprites['left'],
+                     pos.minus(new Vector(MAP_WIDTH, 0)));
+        this.setSpritePos(this.sprites['right'],
+                     pos.plus(new Vector(MAP_WIDTH, 0)));
+        this.setSpritePos(this.sprites['up'],
+                     pos.minus(new Vector(0, MAP_HEIGHT)));
+        this.setSpritePos(this.sprites['down'],
+                     pos.plus(new Vector(0, MAP_HEIGHT)));
+    }
+
+    setSpritePos(sprite, pos) {
+        this.setSpritePosRaw(sprite, pos.x * BLOCK, pos.y * BLOCK);
+    }
+
+    setSpritePosRaw(sprite, x, y) {
+        sprite.x = x;
+        sprite.y = y;
     }
 
     setDest(dest) {
@@ -201,12 +214,30 @@ class Entity extends EventEmitter {
     }
 
     addTo(app) {
-        app.stage.addChild(this.sprite);
+        app.stage.addChild(this.sprites['centre']);
+        app.stage.addChild(this.sprites['up']);
+        app.stage.addChild(this.sprites['down']);
+        app.stage.addChild(this.sprites['left']);
+        app.stage.addChild(this.sprites['right']);
+    }
+
+    replace(nextDest) {
+        let wrapper = nextDest.getWrappingVector();
+
+        let oldSprite = this.sprite;
+        let replacementSprite = new PIXI.Sprite(
+            oldSprite.texture
+        );
+        replacementSprite.zIndex = oldSprite.zIndex;
+        replacementSprite.x = oldSprite.x + wrapper.x * BLOCK;
+        replacementSprite.y = oldSprite.y + wrapper.y * BLOCK;
+        this.sprite.parent.addChild(replacementSprite);
+        this.sprite = replacementSprite;
+        oldSprite.destroy();
+
     }
 
     update(next) {
-        if (next.outOfBounds()) {
-        }
         this.setWorldPos(this.dest);
         this.setDest(next);
         return this.worldPos.clone();
@@ -226,25 +257,23 @@ class Entity extends EventEmitter {
     }
 
     destroy() {
-        this.sprite.destroy();
+        Object.values(this.sprites, (sprite) => sprite.destroy());
     }
 }
 
-function createPart(zIndex, imageName, pos, dest) {
+function createPart(zIndex, imageName, pos, direction) {
     let sprite = new PIXI.Sprite(
         PIXI.loader.resources[imageName].texture
     );
     sprite.zIndex = zIndex;
-    return new Entity(pos, sprite, dest);
+    return new SimpleEntity(worldConfig, sprite, pos, direction);
 }
 
-class Snuok extends EventEmitter {
-    constructor (app, speed) { // not sure this needs to read the app state
-        super();
+class Snuok {
+    constructor (app, start, len, speed) { // not sure this needs to read the app state
         this.app = app;
         this.speed = speed;
         this.lerpProgress = 0;
-
 
 	    this.direction = new Vector(1,0);
 	    this.nextDirection = this.direction;
@@ -257,22 +286,19 @@ class Snuok extends EventEmitter {
         this.head = createPart.bind({}, 100, "snuok_head_pink.png")
         this.body = createPart.bind({}, 50, "snuok_body.png")
 
-        let start = new Vector(10,10);
-        
         this.corners = {};
         this.parts = [
-            this.head(start, start.plus(this.direction))
+            this.head(start, this.direction)
         ];
-        for (let i = 0; i < 8 ; i++) {
-            let ent = this.body(this.parts[i].worldPos.left(), 
-                                this.parts[i].worldPos.clone());
+        for (let i = 0; i < len ; i++) {
+            let ent = this.body(this.parts[i].pos.left(), 
+                                this.direction);
             this.parts.push(ent);
         }
-
     }
 
     addToStage(app) {
-    	this.parts.map((entity) => entity.addTo(app))
+    	this.parts.map((entity) => entity.addTo(app.stage))
     }
 
     bindKeys(bindings) {
@@ -286,6 +312,12 @@ class Snuok extends EventEmitter {
     	})
     }
 
+    shiftBy(offset) {
+        this.parts.map((part) => {
+            part.shiftBy(offset);
+        });
+    }
+
 	update(world, delta) {
         if (this.dead) {
             return;
@@ -294,49 +326,67 @@ class Snuok extends EventEmitter {
         let lerpFactor = this.lerpProgress / this.speed;
 
         if (updateState) {
-            // update positions and destinations 
-            let next = this.parts[0].dest;
-            for (let i = 1; i < this.parts.length ; i++) {
-                next = this.parts[i].update(next);
-            }
-
-            // update position and destination of head
-            if (!this.direction.equals(this.nextDirection)) {
-                this.addCornerAt(this.parts[0].dest);
-		        this.direction = this.nextDirection;
-            }
-
-            this.parts[0].update(
-                this.parts[0].dest.plus(this.direction)
-            );
-            
-            // check if there's a tail corner to be deleted
-            let tail = this.parts[this.parts.length - 1];
-            let tailPos = tail.worldPos.toString();
-            if (this.corners[tailPos]) {
-                this.corners[tailPos].destroy();
-                delete this.corners[tailPos];
-            }
-
-            // check for collisions
-            let collided = this.checkCollisions();
-            if (collided) {
-                this.dead = true;
-                window.ghostTyper.display("Uh-Oh! You died :/");
-            }
+            this.stateTick(lerpFactor)
         }
 
         // do draw
         this.parts.map((part) => part.draw(lerpFactor));
 	}
+
+    stateTick(lerpFactor) {
+        // update positions and destinations 
+        let next = this.parts[0].dest;
+        for (let i = 1; i < this.parts.length ; i++) {
+            next = this.parts[i].update(next);
+        }
+
+        // update position and destination of head
+        if (!this.direction.equals(this.nextDirection)) {
+            this.addCornerAt(this.parts[0].dest);
+            this.direction = this.nextDirection;
+        }
+
+        this.parts[0].update(
+            this.parts[0].dest.plus(this.direction)
+        );
+        
+        // check if there's a tail corner to be deleted
+        let tail = this.parts[this.parts.length - 1];
+        let tailPos = tail.pos.toString();
+        if (this.corners[tailPos]) {
+            this.corners[tailPos].destroy();
+            delete this.corners[tailPos];
+        }
+
+        // check for collisions
+        let collided = this.checkCollisions();
+        if (collided) {
+            this.dead = true;
+            window.ghostTyper.display("Uh-Oh! You died :/");
+        }
+    }
     
+    getHitBox() {
+        return this.parts[0].dest.clone();
+    }
+
     checkCollisions() {
-        // check for death
-        let newHeadPos = this.parts[0].dest.clone().wrap();
+        let newHeadPos = this.getHitBox();
+       // let newHeadPos = this.parts[0].dest.clone().wrap();
+        return this.checkCollides(newHeadPos);
+    }
+
+    checkCollides(pos) {
         return this.parts
-            .slice(1)
-            .reduce((collided, part) => collided || part.collides(newHeadPos) ? part : undefined,
-                   undefined);
+            .reduce((collided, part) => {
+                if (collided) {
+                    return collided;
+                }
+                if (part.collides(pos)) {
+                    return part;
+                }
+                return undefined;
+        }, undefined);
     }
 
     updateLerp(delta) {
@@ -356,10 +406,74 @@ class Snuok extends EventEmitter {
 	}
 
     addCornerAt(position) {
-        let corner = this.body(position, position);
-        corner.addTo(this.app);
+        let corner = this.body(position, new Vector(0,0));
+        corner.addTo(this.app.stage);
         this.corners[position.toString()] = corner;
     }
 }
 
+class WrapperSnuok extends Snuok {
+    constructor(app, start, len, speed) {
+        super(app, start, len, speed);
+        this.LEFT_OFFSET = new Vector(-worldConfig.MAP_WIDTH, 0);
+        this.RIGHT_OFFSET = new Vector(worldConfig.MAP_WIDTH, 0);
+        this.UP_OFFSET = new Vector(0, -worldConfig.MAP_HEIGHT);
+        this.DOWN_OFFSET = new Vector(0, worldConfig.MAP_HEIGHT);
+        this.replicas = {
+            left: new Snuok(app, start.plus(this.LEFT_OFFSET), len, speed),
+            right: new Snuok(app, start.plus(this.RIGHT_OFFSET), len, speed),
+            up: new Snuok(app, start.plus(this.UP_OFFSET), len, speed),
+            down: new Snuok(app, start.plus(this.DOWN_OFFSET), len, speed)
+        };
+    }
 
+    turnDirection(newDirection) {
+        super.turnDirection(newDirection);
+        this.replicas.left.turnDirection(newDirection);
+        this.replicas.right.turnDirection(newDirection);
+        this.replicas.up.turnDirection(newDirection);
+        this.replicas.down.turnDirection(newDirection);
+	}
+
+    update(world, delta) {
+        this.replicas.left.update(world, delta);
+        this.replicas.right.update(world, delta);
+        this.replicas.up.update(world, delta);
+        this.replicas.down.update(world, delta);
+        super.update(world, delta);
+    }
+
+    stateTick(lerpFactor) {
+        super.stateTick(lerpFactor);
+        this.checkWrap();
+        this.replicas
+    }
+
+    checkWrap() {
+        if (this.parts[0].outOfBounds()) {
+            let offset = this.parts[0].getWrappingVector();
+            super.shiftBy(offset);
+            this.replicas.left.shiftBy(offset);
+            this.replicas.right.shiftBy(offset);
+            this.replicas.up.shiftBy(offset);
+            this.replicas.down.shiftBy(offset);
+        }
+    }
+
+    checkCollisions() {
+        let hitBox = this.getHitBox();
+        return super.checkCollides(hitBox) ||
+            this.replicas.left.checkCollides(hitBox) ||
+            this.replicas.right.checkCollides(hitBox) ||
+            this.replicas.up.checkCollides(hitBox) ||
+            this.replicas.down.checkCollides(hitBox);
+    }
+
+    addToStage(app) {
+    	super.addToStage(app);
+        this.replicas.left.addToStage(app);
+        this.replicas.right.addToStage(app);
+        this.replicas.up.addToStage(app);
+        this.replicas.down.addToStage(app);
+    }
+}
