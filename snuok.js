@@ -44,7 +44,17 @@ PIXI.loader
 function setup() {
     let len = 4;
     let lerp_time = 15;
-	snuok = new WrapperSnuok(app, new Vector(10,10), len, lerp_time) // time to reach a destination
+    let instructions = [
+        'up',
+        'wait',
+        'wait',
+        'left',
+        'down',
+        'wait',
+        'wait',
+        'right'
+    ];
+	snuok = new ScriptedSnuok(app, new Vector(18,0), len, lerp_time, instructions)
 	snuok.bindKeys({
 		'w': snuok.UP,
 		's': snuok.DOWN,
@@ -159,107 +169,6 @@ class Vector {
     }
 }
 
-// Simplifies translation between world position and sprite position
-class Entity {
-    constructor(worldPos, sprite, dest) {
-        this.worldPos = worldPos;
-        this.dest = dest;
-
-        this.sprites = {}
-        this.sprites['centre'] = sprite;
-        this.sprites['up'] = PIXI.Sprite.from(sprite.texture);
-        this.sprites['down'] = PIXI.Sprite.from(sprite.texture);
-        this.sprites['left'] = PIXI.Sprite.from(sprite.texture);
-        this.sprites['right'] = PIXI.Sprite.from(sprite.texture);
-
-        this.lerpProgress = 0;
-
-        this.setWorldPos(worldPos);
-        this.spriteAt(worldPos);
-    }
-
-    setWorldPos(newPos) {
-        this.worldPos.x = newPos.x;
-        this.worldPos.y = newPos.y;
-    }
-
-    spriteAt(pos) { // called by draw loop
-        this.setSpritePos(this.sprites['centre'], pos);
-        this.setSpritePos(this.sprites['left'],
-                     pos.minus(new Vector(MAP_WIDTH, 0)));
-        this.setSpritePos(this.sprites['right'],
-                     pos.plus(new Vector(MAP_WIDTH, 0)));
-        this.setSpritePos(this.sprites['up'],
-                     pos.minus(new Vector(0, MAP_HEIGHT)));
-        this.setSpritePos(this.sprites['down'],
-                     pos.plus(new Vector(0, MAP_HEIGHT)));
-    }
-
-    setSpritePos(sprite, pos) {
-        this.setSpritePosRaw(sprite, pos.x * BLOCK, pos.y * BLOCK);
-    }
-
-    setSpritePosRaw(sprite, x, y) {
-        sprite.x = x;
-        sprite.y = y;
-    }
-
-    setDest(dest) {
-        this.dest.x = dest.x;
-        this.dest.y = dest.y;
-    }
-
-    applyDirection(direction) {
-        this.dest = this.worldPos.plus(direction);
-    }
-
-    addTo(app) {
-        app.stage.addChild(this.sprites['centre']);
-        app.stage.addChild(this.sprites['up']);
-        app.stage.addChild(this.sprites['down']);
-        app.stage.addChild(this.sprites['left']);
-        app.stage.addChild(this.sprites['right']);
-    }
-
-    replace(nextDest) {
-        let wrapper = nextDest.getWrappingVector();
-
-        let oldSprite = this.sprite;
-        let replacementSprite = new PIXI.Sprite(
-            oldSprite.texture
-        );
-        replacementSprite.zIndex = oldSprite.zIndex;
-        replacementSprite.x = oldSprite.x + wrapper.x * BLOCK;
-        replacementSprite.y = oldSprite.y + wrapper.y * BLOCK;
-        this.sprite.parent.addChild(replacementSprite);
-        this.sprite = replacementSprite;
-        oldSprite.destroy();
-    }
-
-    update(next) {
-        this.setWorldPos(this.dest);
-        this.setDest(next);
-        return this.worldPos.clone();
-    }
-
-    draw(lerpFactor) {
-        let deltaX = (this.dest.x - this.worldPos.x) * lerpFactor;
-        let deltaY = (this.dest.y - this.worldPos.y) * lerpFactor;
-        let newPos = new Vector(this.worldPos.x + deltaX,
-                                this.worldPos.y + deltaY);
-        
-        this.spriteAt(newPos);
-    }
-
-    collides(position) {
-        return position.equals(this.worldPos);
-    }
-
-    destroy() {
-        Object.values(this.sprites, (sprite) => sprite.destroy());
-    }
-}
-
 function createPart(zIndex, imageName, pos, direction) {
     let sprite = new PIXI.Sprite(
         PIXI.loader.resources[imageName].texture
@@ -337,11 +246,18 @@ class Snuok {
         );
         
         // check if there's a tail corner to be deleted
-        let tail = this.parts[this.parts.length - 1];
-        let tailPos = tail.pos.toString();
-        if (this.corners[tailPos]) {
-            this.corners[tailPos].destroy();
-            delete this.corners[tailPos];
+       // let tail = this.parts[this.parts.length - 1];
+       // let tailPos = tail.pos.toString();
+       // if (this.corners[tailPos]) {
+        //    this.corners[tailPos].destroy();
+        //    delete this.corners[tailPos];
+       // }
+        for (let k in this.corners) {
+            this.corners[k].ttl -= 1;
+            if (this.corners[k].ttl <= 0) {
+                this.corners[k].corner.destroy();
+                delete this.corners[k];
+            }
         }
 
         // check for collisions
@@ -399,11 +315,11 @@ class Snuok {
     addCornerAt(position) {
         let corner = this.body(position, new Vector(0,0));
         corner.addTo(this.app.stage);
-        this.corners[position.toString()] = corner;
+        this.corners[position.toString()] = {corner, ttl: this.parts.length};
     }
 }
 
-class WrapperSnuok {
+class WrappedSnuok {
     constructor(app, start, len, speed) {
         this.LEFT_OFFSET = new Vector(-worldConfig.MAP_WIDTH, 0);
         this.RIGHT_OFFSET = new Vector(worldConfig.MAP_WIDTH, 0);
@@ -532,5 +448,38 @@ class WrapperSnuok {
         this.replicas.right.addToStage(app);
         this.replicas.up.addToStage(app);
         this.replicas.down.addToStage(app);
+    }
+}
+
+class ScriptedSnuok extends WrappedSnuok {
+    constructor(app, start, len, speed, script) {
+        super(app, start, len, speed);
+        this.script = script;
+        this.scriptPos = 0;
+    }
+
+    stateTick() {
+        super.stateTick();
+        this.execute(this.script[this.scriptPos]);
+        this.scriptPos += 1;
+        this.scriptPos %= this.script.length;
+
+    }
+
+    bindKeys() {}
+
+    execute(command) {
+        if (command === 'up') {
+            this.UP();
+        }
+        if (command === 'down') {
+            this.DOWN();
+        }
+        if (command === 'left') {
+            this.LEFT();
+        }
+        if (command === 'right') {
+            this.RIGHT();
+        }
     }
 }
