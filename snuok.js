@@ -234,7 +234,6 @@ class Entity {
         this.sprite.parent.addChild(replacementSprite);
         this.sprite = replacementSprite;
         oldSprite.destroy();
-
     }
 
     update(next) {
@@ -278,11 +277,6 @@ class Snuok {
 	    this.direction = new Vector(1,0);
 	    this.nextDirection = this.direction;
 
-	    this.UP = this.turnDirection.bind(this, new Vector(0,-1))
-	    this.DOWN = this.turnDirection.bind(this, new Vector(0,1))
-	    this.LEFT = this.turnDirection.bind(this, new Vector(-1,0))
-	    this.RIGHT = this.turnDirection.bind(this, new Vector(1,0))
-
         this.head = createPart.bind({}, 100, "snuok_head_pink.png")
         this.body = createPart.bind({}, 50, "snuok_body.png")
 
@@ -301,16 +295,7 @@ class Snuok {
     	this.parts.map((entity) => entity.addTo(app.stage))
     }
 
-    bindKeys(bindings) {
-    	$(window).keydown((evt) => {
-    		if (bindings[evt.key]) {
-    			bindings[evt.key]();
-    		}
-            if (bindings[evt.keyCode]) {
-                bindings[evt.keyCode]();
-            }
-    	})
-    }
+    
 
     shiftBy(offset) {
         this.parts.map((part) => {
@@ -329,8 +314,9 @@ class Snuok {
             this.stateTick(lerpFactor)
         }
 
-        // do draw
         this.parts.map((part) => part.draw(lerpFactor));
+
+        return updateState;
 	}
 
     stateTick(lerpFactor) {
@@ -366,6 +352,10 @@ class Snuok {
         }
     }
     
+    outOfBounds() {
+        return this.parts[0].outOfBounds();
+    }
+
     getHitBox() {
         return this.parts[0].dest.clone();
     }
@@ -378,6 +368,7 @@ class Snuok {
 
     checkCollides(pos) {
         return this.parts
+            .slice(1) // ignore head
             .reduce((collided, part) => {
                 if (collided) {
                     return collided;
@@ -412,14 +403,20 @@ class Snuok {
     }
 }
 
-class WrapperSnuok extends Snuok {
+class WrapperSnuok {
     constructor(app, start, len, speed) {
-        super(app, start, len, speed);
         this.LEFT_OFFSET = new Vector(-worldConfig.MAP_WIDTH, 0);
         this.RIGHT_OFFSET = new Vector(worldConfig.MAP_WIDTH, 0);
         this.UP_OFFSET = new Vector(0, -worldConfig.MAP_HEIGHT);
         this.DOWN_OFFSET = new Vector(0, worldConfig.MAP_HEIGHT);
+
+        this.UP = this.up.bind(this);
+        this.DOWN = this.down.bind(this);
+        this.LEFT = this.left.bind(this);
+        this.RIGHT = this.right.bind(this);
+
         this.replicas = {
+            centre: new Snuok(app, start, len, speed),
             left: new Snuok(app, start.plus(this.LEFT_OFFSET), len, speed),
             right: new Snuok(app, start.plus(this.RIGHT_OFFSET), len, speed),
             up: new Snuok(app, start.plus(this.UP_OFFSET), len, speed),
@@ -428,41 +425,101 @@ class WrapperSnuok extends Snuok {
     }
 
     turnDirection(newDirection) {
-        super.turnDirection(newDirection);
+        this.replicas.centre.turnDirection(newDirection);
         this.replicas.left.turnDirection(newDirection);
         this.replicas.right.turnDirection(newDirection);
         this.replicas.up.turnDirection(newDirection);
         this.replicas.down.turnDirection(newDirection);
 	}
 
+    up() {this.turnDirection(new Vector(0, -1));}
+    down() {this.turnDirection(new Vector(0, 1));}
+    left() {this.turnDirection(new Vector(-1, 0));}
+    right() {this.turnDirection(new Vector(1, 0));}
+
+    bindKeys(bindings) {
+    	$(window).keydown((evt) => {
+    		if (bindings[evt.key]) {
+    			bindings[evt.key]();
+    		}
+            if (bindings[evt.keyCode]) {
+                bindings[evt.keyCode]();
+            }
+    	})
+    }
+
     update(world, delta) {
+        let updateState = this.replicas.centre.update(world, delta);
         this.replicas.left.update(world, delta);
         this.replicas.right.update(world, delta);
         this.replicas.up.update(world, delta);
         this.replicas.down.update(world, delta);
-        super.update(world, delta);
+        if (updateState) {
+            this.stateTick();
+        }
     }
 
-    stateTick(lerpFactor) {
-        super.stateTick(lerpFactor);
+    stateTick() {
         this.checkWrap();
-        this.replicas
     }
 
     checkWrap() {
-        if (this.parts[0].outOfBounds()) {
-            let offset = this.parts[0].getWrappingVector();
-            super.shiftBy(offset);
-            this.replicas.left.shiftBy(offset);
-            this.replicas.right.shiftBy(offset);
-            this.replicas.up.shiftBy(offset);
-            this.replicas.down.shiftBy(offset);
+        if (this.replicas.centre.outOfBounds()) {
+            let wrapper = this.replicas.centre.parts[0].getWrappingVector();
+            if (wrapper.x > 0) { // out left
+                let temp = this.replicas.centre;
+                this.replicas.centre = this.replicas.right;
+                this.replicas.right = this.replicas.left;
+                this.replicas.left = temp;
+                this.replicas.right.shiftBy(wrapper);
+                this.replicas.right.shiftBy(wrapper);
+                this.replicas.right.shiftBy(wrapper);
+
+                this.replicas.up.shiftBy(wrapper);
+                this.replicas.down.shiftBy(wrapper);
+            }
+            if (wrapper.x < 0) {
+                let temp = this.replicas.centre;
+                this.replicas.centre = this.replicas.left;
+                this.replicas.left = this.replicas.right;
+                this.replicas.right = temp;
+                this.replicas.left.shiftBy(wrapper);
+                this.replicas.left.shiftBy(wrapper);
+                this.replicas.left.shiftBy(wrapper);
+
+                this.replicas.up.shiftBy(wrapper);
+                this.replicas.down.shiftBy(wrapper);
+            }
+            if (wrapper.y < 0) { // out bottom
+                let temp = this.replicas.centre;
+                this.replicas.centre = this.replicas.up;
+                this.replicas.up = this.replicas.down;
+                this.replicas.down = temp;
+                this.replicas.up.shiftBy(wrapper);
+                this.replicas.up.shiftBy(wrapper);
+                this.replicas.up.shiftBy(wrapper);
+
+                this.replicas.left.shiftBy(wrapper);
+                this.replicas.right.shiftBy(wrapper);
+            }
+            if (wrapper.y > 0) {
+                let temp = this.replicas.centre;
+                this.replicas.centre = this.replicas.down;
+                this.replicas.down = this.replicas.up;
+                this.replicas.up = temp;
+                this.replicas.down.shiftBy(wrapper);
+                this.replicas.down.shiftBy(wrapper);
+                this.replicas.down.shiftBy(wrapper);
+
+                this.replicas.left.shiftBy(wrapper);
+                this.replicas.right.shiftBy(wrapper);
+            }
         }
     }
 
     checkCollisions() {
         let hitBox = this.getHitBox();
-        return super.checkCollides(hitBox) ||
+        return this.replicas.centre.checkCollides(hitBox) ||
             this.replicas.left.checkCollides(hitBox) ||
             this.replicas.right.checkCollides(hitBox) ||
             this.replicas.up.checkCollides(hitBox) ||
@@ -470,7 +527,7 @@ class WrapperSnuok extends Snuok {
     }
 
     addToStage(app) {
-    	super.addToStage(app);
+    	this.replicas.centre.addToStage(app);
         this.replicas.left.addToStage(app);
         this.replicas.right.addToStage(app);
         this.replicas.up.addToStage(app);
