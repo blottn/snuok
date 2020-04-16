@@ -73,12 +73,11 @@ function setup() {
 	app.ticker.add(step.bind({}, world))
 }
 
-let sinceLastUpdate = 0;
-
 function step(world, delta) {
 	snuok.update(world, delta);
 }
 
+// Helper for Snuok constructor
 function createPart(zIndex, imageName, pos, direction) {
     let sprite = new PIXI.Sprite(
         PIXI.loader.resources[imageName].texture
@@ -113,8 +112,6 @@ class Snuok {
     addToStage(app) {
     	this.parts.map((entity) => entity.addTo(app.stage))
     }
-
-    
 
     shiftBy(offset) {
         this.parts.map((part) => {
@@ -155,13 +152,6 @@ class Snuok {
             this.parts[0].dest.plus(this.direction)
         );
         
-        // check if there's a tail corner to be deleted
-       // let tail = this.parts[this.parts.length - 1];
-       // let tailPos = tail.pos.toString();
-       // if (this.corners[tailPos]) {
-        //    this.corners[tailPos].destroy();
-        //    delete this.corners[tailPos];
-       // }
         for (let k in this.corners) {
             this.corners[k].ttl -= 1;
             if (this.corners[k].ttl <= 0) {
@@ -187,9 +177,7 @@ class Snuok {
     }
 
     checkCollisions() {
-        let newHeadPos = this.getHitBox();
-       // let newHeadPos = this.parts[0].dest.clone().wrap();
-        return this.checkCollides(newHeadPos);
+        return this.checkCollides(this.getHitBox());
     }
 
     checkCollides(pos) {
@@ -299,18 +287,6 @@ class WrappedSnuok {
         this.checkWrap();
     }
 
-    rotate(outer, centre, inner, wrapper) {
-        let temp = this.replicas[centre];
-        this.replicas[centre] = this.replicas[inner];
-        this.replicas[inner] = this.replicas[outer];
-
-        this.replicas[inner] = this.replicas[outer];
-        this.replicas[outer] = temp;
-        this.replicas[inner].shiftBy(wrapper);
-        this.replicas[inner].shiftBy(wrapper);
-        this.replicas[inner].shiftBy(wrapper);
-    }
-
     checkWrap() {
         if (this.replicas.centre.outOfBounds()) {
             let wrapper = this.replicas.centre.parts[0].getWrappingVector();
@@ -337,10 +313,16 @@ class WrappedSnuok {
         }
     }
 
-    checkCollisions() {
-        let hitBox = this.getHitBox();
-        return this.map(Snuok.prototype.checkCollides, [hitBox])
-            .reduce((acc, current) => acc || current);
+    rotate(outer, centre, inner, wrapper) {
+        let temp = this.replicas[centre];
+        this.replicas[centre] = this.replicas[inner];
+        this.replicas[inner] = this.replicas[outer];
+
+        this.replicas[inner] = this.replicas[outer];
+        this.replicas[outer] = temp;
+        this.replicas[inner].shiftBy(wrapper);
+        this.replicas[inner].shiftBy(wrapper);
+        this.replicas[inner].shiftBy(wrapper);
     }
 
     addToStage(app) {
@@ -348,35 +330,4 @@ class WrappedSnuok {
     }
 }
 
-class ScriptedSnuok extends WrappedSnuok {
-    constructor(app, start, len, speed, script) {
-        super(app, start, len, speed);
-        this.script = script;
-        this.scriptPos = 0;
-    }
 
-    stateTick() {
-        super.stateTick();
-        this.execute(this.script[this.scriptPos]);
-        this.scriptPos += 1;
-        this.scriptPos %= this.script.length;
-
-    }
-
-    bindKeys() {}
-
-    execute(command) {
-        if (command === 'up') {
-            this.UP();
-        }
-        if (command === 'down') {
-            this.DOWN();
-        }
-        if (command === 'left') {
-            this.LEFT();
-        }
-        if (command === 'right') {
-            this.RIGHT();
-        }
-    }
-}
