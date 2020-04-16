@@ -44,7 +44,7 @@ PIXI.loader
 function setup() {
     let len = 4;
     let lerp_time = 15;
-    let instructions = [
+    /*let instructions = [
         'up',
         'wait',
         'wait',
@@ -53,8 +53,8 @@ function setup() {
         'wait',
         'wait',
         'right'
-    ];
-	snuok = new ScriptedSnuok(app, new Vector(18,0), len, lerp_time, instructions)
+    ];*/
+	snuok = new WrappedSnuok(app, new Vector(18,0), len, lerp_time);
 	snuok.bindKeys({
 		'w': snuok.UP,
 		's': snuok.DOWN,
@@ -326,6 +326,11 @@ class WrappedSnuok {
         this.UP_OFFSET = new Vector(0, -worldConfig.MAP_HEIGHT);
         this.DOWN_OFFSET = new Vector(0, worldConfig.MAP_HEIGHT);
 
+        this.UPLEFT_OFFSET = this.UP_OFFSET.plus(this.LEFT_OFFSET);
+        this.UPRIGHT_OFFSET = this.UP_OFFSET.plus(this.RIGHT_OFFSET);
+        this.DOWNLEFT_OFFSET = this.DOWN_OFFSET.plus(this.LEFT_OFFSET);
+        this.DOWNRIGHT_OFFSET = this.DOWN_OFFSET.plus(this.RIGHT_OFFSET);
+
         this.UP = this.up.bind(this);
         this.DOWN = this.down.bind(this);
         this.LEFT = this.left.bind(this);
@@ -336,16 +341,25 @@ class WrappedSnuok {
             left: new Snuok(app, start.plus(this.LEFT_OFFSET), len, speed),
             right: new Snuok(app, start.plus(this.RIGHT_OFFSET), len, speed),
             up: new Snuok(app, start.plus(this.UP_OFFSET), len, speed),
-            down: new Snuok(app, start.plus(this.DOWN_OFFSET), len, speed)
+            down: new Snuok(app, start.plus(this.DOWN_OFFSET), len, speed),
+            upRight: new Snuok(app, start.plus(this.UPRIGHT_OFFSET),
+                               len, speed),
+            upLeft: new Snuok(app, start.plus(this.UPLEFT_OFFSET),
+                               len, speed),
+            downRight: new Snuok(app, start.plus(this.DOWNRIGHT_OFFSET),
+                               len, speed),
+            downLeft: new Snuok(app, start.plus(this.DOWNLEFT_OFFSET),
+                               len, speed),
         };
     }
 
+    map(func, args) {
+        return Object.values(this.replicas)
+            .map((s) => func.apply(s, args));
+    }
+
     turnDirection(newDirection) {
-        this.replicas.centre.turnDirection(newDirection);
-        this.replicas.left.turnDirection(newDirection);
-        this.replicas.right.turnDirection(newDirection);
-        this.replicas.up.turnDirection(newDirection);
-        this.replicas.down.turnDirection(newDirection);
+        this.map(Snuok.prototype.turnDirection, [newDirection]);
 	}
 
     up() {this.turnDirection(new Vector(0, -1));}
@@ -365,12 +379,8 @@ class WrappedSnuok {
     }
 
     update(world, delta) {
-        let updateState = this.replicas.centre.update(world, delta);
-        this.replicas.left.update(world, delta);
-        this.replicas.right.update(world, delta);
-        this.replicas.up.update(world, delta);
-        this.replicas.down.update(world, delta);
-        if (updateState) {
+        let states = this.map(Snuok.prototype.update, [world, delta])
+        if (states[0]) {
             this.stateTick();
         }
     }
@@ -379,75 +389,52 @@ class WrappedSnuok {
         this.checkWrap();
     }
 
+    rotate(outer, centre, inner, wrapper) {
+        let temp = this.replicas[centre];
+        this.replicas[centre] = this.replicas[inner];
+        this.replicas[inner] = this.replicas[outer];
+
+        this.replicas[inner] = this.replicas[outer];
+        this.replicas[outer] = temp;
+        this.replicas[inner].shiftBy(wrapper);
+        this.replicas[inner].shiftBy(wrapper);
+        this.replicas[inner].shiftBy(wrapper);
+    }
+
     checkWrap() {
         if (this.replicas.centre.outOfBounds()) {
             let wrapper = this.replicas.centre.parts[0].getWrappingVector();
             if (wrapper.x > 0) { // out left
-                let temp = this.replicas.centre;
-                this.replicas.centre = this.replicas.right;
-                this.replicas.right = this.replicas.left;
-                this.replicas.left = temp;
-                this.replicas.right.shiftBy(wrapper);
-                this.replicas.right.shiftBy(wrapper);
-                this.replicas.right.shiftBy(wrapper);
-
-                this.replicas.up.shiftBy(wrapper);
-                this.replicas.down.shiftBy(wrapper);
+                this.rotate('left', 'centre', 'right', wrapper);
+                this.rotate('upLeft', 'up', 'upRight', wrapper);
+                this.rotate('downLeft', 'down', 'downRight', wrapper);
             }
             if (wrapper.x < 0) {
-                let temp = this.replicas.centre;
-                this.replicas.centre = this.replicas.left;
-                this.replicas.left = this.replicas.right;
-                this.replicas.right = temp;
-                this.replicas.left.shiftBy(wrapper);
-                this.replicas.left.shiftBy(wrapper);
-                this.replicas.left.shiftBy(wrapper);
-
-                this.replicas.up.shiftBy(wrapper);
-                this.replicas.down.shiftBy(wrapper);
+                this.rotate('right', 'centre', 'left', wrapper);
+                this.rotate('upRight', 'up', 'upLeft', wrapper);
+                this.rotate('downRight', 'down', 'downLeft', wrapper);
             }
             if (wrapper.y < 0) { // out bottom
-                let temp = this.replicas.centre;
-                this.replicas.centre = this.replicas.up;
-                this.replicas.up = this.replicas.down;
-                this.replicas.down = temp;
-                this.replicas.up.shiftBy(wrapper);
-                this.replicas.up.shiftBy(wrapper);
-                this.replicas.up.shiftBy(wrapper);
-
-                this.replicas.left.shiftBy(wrapper);
-                this.replicas.right.shiftBy(wrapper);
+                this.rotate('down', 'centre', 'up', wrapper);
+                this.rotate('downLeft', 'left', 'upLeft', wrapper);
+                this.rotate('downRight', 'right', 'upRight', wrapper);
             }
             if (wrapper.y > 0) {
-                let temp = this.replicas.centre;
-                this.replicas.centre = this.replicas.down;
-                this.replicas.down = this.replicas.up;
-                this.replicas.up = temp;
-                this.replicas.down.shiftBy(wrapper);
-                this.replicas.down.shiftBy(wrapper);
-                this.replicas.down.shiftBy(wrapper);
-
-                this.replicas.left.shiftBy(wrapper);
-                this.replicas.right.shiftBy(wrapper);
+                this.rotate('up', 'centre', 'down', wrapper);
+                this.rotate('upLeft', 'left', 'downLeft', wrapper);
+                this.rotate('upRight', 'right', 'downRight', wrapper);
             }
         }
     }
 
     checkCollisions() {
         let hitBox = this.getHitBox();
-        return this.replicas.centre.checkCollides(hitBox) ||
-            this.replicas.left.checkCollides(hitBox) ||
-            this.replicas.right.checkCollides(hitBox) ||
-            this.replicas.up.checkCollides(hitBox) ||
-            this.replicas.down.checkCollides(hitBox);
+        return this.map(Snuok.prototype.checkCollides, [hitBox])
+            .reduce((acc, current) => acc || current);
     }
 
     addToStage(app) {
-    	this.replicas.centre.addToStage(app);
-        this.replicas.left.addToStage(app);
-        this.replicas.right.addToStage(app);
-        this.replicas.up.addToStage(app);
-        this.replicas.down.addToStage(app);
+        this.map(Snuok.prototype.addToStage, [app]);
     }
 }
 
