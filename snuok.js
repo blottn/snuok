@@ -67,14 +67,13 @@ function setup() {
 	})
 	snuok.addToStage(app)
 
-	let world = {
-		"SNUOK": snuok,
-	};
+	let world = new World(snuok);
+
 	app.ticker.add(step.bind({}, world))
 }
 
 function step(world, delta) {
-	snuok.update(world, delta);
+    world.update(delta);
 }
 
 // Helper for Snuok constructor
@@ -119,7 +118,7 @@ class Snuok {
         });
     }
 
-	update(world, delta) {
+	update(delta) {
         if (this.dead) {
             return;
         }
@@ -276,8 +275,8 @@ class WrappedSnuok {
     	})
     }
 
-    update(world, delta) {
-        let states = this.map(Snuok.prototype.update, [world, delta])
+    update(delta) {
+        let states = this.map(Snuok.prototype.update, [delta])
         if (states[0]) {
             this.stateTick();
         }
