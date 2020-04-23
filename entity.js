@@ -78,6 +78,10 @@ class SimpleEntity extends DirectionLerper {
         return new Vector(dX, dY);
     }
 
+    getHitBox() {
+        return this.dest.clone();
+    }
+
     collides(point) {
         return this.pos.equals(point);
     }

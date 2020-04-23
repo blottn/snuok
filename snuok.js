@@ -34,6 +34,7 @@ $(document).ready(() => {
 // load sprites!
 PIXI.loader
   .add([
+      "apple.png",
 	  "wall.png",
 	  "snuok_body.png",
 	  "snuok_head_pink.png",
@@ -54,7 +55,7 @@ function setup() {
         'wait',
         'right'
     ];*/
-	snuok = new WrappedSnuok(app, new Vector(18,0), len, lerp_time);
+	snuok = new WrappedSnuok(app.stage, new Vector(18,0), len, lerp_time);
 	snuok.bindKeys({
 		'w': snuok.UP,
 		's': snuok.DOWN,
@@ -65,9 +66,8 @@ function setup() {
         39 : snuok.RIGHT,
         40 : snuok.DOWN,
 	})
-	snuok.addToStage(app)
 
-	let world = new World(snuok);
+	let world = new World(app.stage, worldConfig, snuok);
 
 	app.ticker.add(step.bind({}, world))
 }
@@ -86,8 +86,8 @@ function createPart(zIndex, imageName, pos, direction) {
 }
 
 class Snuok {
-    constructor (app, start, len, speed) { // not sure this needs to read the app state
-        this.app = app;
+    constructor (container, start, len, speed) { // not sure this needs to read the app state
+        this.container = container;
         this.speed = speed;
         this.lerpProgress = 0;
 
@@ -108,8 +108,8 @@ class Snuok {
         }
     }
 
-    addToStage(app) {
-    	this.parts.map((entity) => entity.addTo(app.stage))
+    addTo(parent) {
+    	this.parts.map((entity) => entity.addTo(parent))
     }
 
     shiftBy(offset) {
@@ -172,16 +172,17 @@ class Snuok {
     }
 
     getHitBox() {
-        return this.parts[0].dest.clone();
+        return this.parts[0].getHitBox();
     }
 
     checkCollisions() {
         return this.checkCollides(this.getHitBox());
     }
 
-    checkCollides(pos) {
+    checkCollides(pos, startFrom=1) { // use startFrom=0 to also check if it overlaps the head
+
         return this.parts
-            .slice(1) // ignore head
+            .slice(startFrom) // ignore head
             .reduce((collided, part) => {
                 if (collided) {
                     return collided;
@@ -202,6 +203,10 @@ class Snuok {
         return moveToNext;
     }
 
+    grow() {
+        this.body();
+    }
+
     turnDirection(newDirection) {
 	    const err = 0.0001; // arbitrary error in case of float magic
 	    if (this.direction.plus(newDirection).magnitude() >= err) { // not opposites
@@ -211,13 +216,17 @@ class Snuok {
 
     addCornerAt(position) {
         let corner = this.body(position, new Vector(0,0));
-        corner.addTo(this.app.stage);
+        corner.addTo(this.container);
         this.corners[position.toString()] = {corner, ttl: this.parts.length};
+    }
+
+    getPoints() {
+        return this.parts.map((point) => point.pos.toString());
     }
 }
 
 class WrappedSnuok {
-    constructor(app, start, len, speed) {
+    constructor(container, start, len, speed) {
         this.LEFT_OFFSET = new Vector(-worldConfig.MAP_WIDTH, 0);
         this.RIGHT_OFFSET = new Vector(worldConfig.MAP_WIDTH, 0);
         this.UP_OFFSET = new Vector(0, -worldConfig.MAP_HEIGHT);
@@ -234,18 +243,22 @@ class WrappedSnuok {
         this.RIGHT = this.right.bind(this);
 
         this.replicas = {
-            centre: new Snuok(app, start, len, speed),
-            left: new Snuok(app, start.plus(this.LEFT_OFFSET), len, speed),
-            right: new Snuok(app, start.plus(this.RIGHT_OFFSET), len, speed),
-            up: new Snuok(app, start.plus(this.UP_OFFSET), len, speed),
-            down: new Snuok(app, start.plus(this.DOWN_OFFSET), len, speed),
-            upRight: new Snuok(app, start.plus(this.UPRIGHT_OFFSET),
+            centre: new Snuok(container, start, len, speed),
+            left: new Snuok(container, start.plus(this.LEFT_OFFSET),
+                            len, speed),
+            right: new Snuok(container, start.plus(this.RIGHT_OFFSET),
+                             len, speed),
+            up: new Snuok(container, start.plus(this.UP_OFFSET),
+                          len, speed),
+            down: new Snuok(container, start.plus(this.DOWN_OFFSET),
+                            len, speed),
+            upRight: new Snuok(container, start.plus(this.UPRIGHT_OFFSET),
                                len, speed),
-            upLeft: new Snuok(app, start.plus(this.UPLEFT_OFFSET),
+            upLeft: new Snuok(container, start.plus(this.UPLEFT_OFFSET),
                                len, speed),
-            downRight: new Snuok(app, start.plus(this.DOWNRIGHT_OFFSET),
+            downRight: new Snuok(container, start.plus(this.DOWNRIGHT_OFFSET),
                                len, speed),
-            downLeft: new Snuok(app, start.plus(this.DOWNLEFT_OFFSET),
+            downLeft: new Snuok(container, start.plus(this.DOWNLEFT_OFFSET),
                                len, speed),
         };
     }
@@ -280,10 +293,15 @@ class WrappedSnuok {
         if (states[0]) {
             this.stateTick();
         }
+        return states[0];
     }
 
     stateTick() {
         this.checkWrap();
+    }
+
+    checkCollides(point, startFrom=1) {
+        return this.replicas.centre.checkCollides(point, startFrom);
     }
 
     checkWrap() {
@@ -324,9 +342,77 @@ class WrappedSnuok {
         this.replicas[inner].shiftBy(wrapper);
     }
 
-    addToStage(app) {
-        this.map(Snuok.prototype.addToStage, [app]);
+    addTo(parent) {
+        this.map(Snuok.prototype.addTo, [parent]);
+    }
+
+    getPoints() {
+        return this.map(Snuok.prototype.getPoints, []).flat();
     }
 }
 
+class World {
+    constructor(container, worldConfig, snuok, seed) {
+        this.container = container;
+        this.worldConfig = worldConfig;
+        this.snuok = snuok;
+        this.seed = seed;
 
+        this.snuok.addTo(container);
+        if (this.seed == undefined) {
+            this.seed = Math.floor(Math.random() * 1000000);     
+        }
+
+        this.apple = this.createApple();
+    }
+
+    random() {
+        let x = Math.sin(this.seed++) * 1000000;
+        return x - Math.floor(x);
+    }
+
+    createApple() {
+        let possibilities = [];
+        for (let i = 0; i < this.worldConfig.MAP_WIDTH ; i++) {
+            for (let j = 0; j < this.worldConfig.MAP_HEIGHT ; j++) {
+                possibilities.push(`${i}.${j}`);
+            }
+        }
+        let consumedPoints = this.snuok.getPoints();
+        
+        possibilities = possibilities.filter(x => {
+            return !this.snuok.getPoints().includes(x)
+        });
+        
+        let choice = Math.floor(this.random() * possibilities.length);
+        let pos = possibilities[choice].split('.').map((x) => {
+            return parseInt(x);
+        });
+        return new Apple(this.container, worldConfig, new Vector(pos[0], pos[1]));
+    }
+
+    update(delta) {
+        // TODO improve this... the snake should not be the controller of state
+        let stateTick = this.snuok.update(delta);
+        if (stateTick) {
+            if (this.snuok.checkCollides(this.apple.getHitBox(), 0)) {
+                this.apple.destroy();
+                this.apple = this.createApple();
+            }
+            this.apple.stateTick();
+        }
+    }
+}
+
+class Apple extends SimpleEntity {
+    constructor(container, worldConfig, position) {
+        let sprite = new PIXI.Sprite(
+            PIXI.loader.resources["apple.png"].texture
+        );
+        super(worldConfig, sprite, position, new Vector(0,0));
+        this.addTo(container);
+    }
+
+    stateTick() {
+    }
+}
