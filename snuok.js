@@ -203,10 +203,6 @@ class Snuok {
         return moveToNext;
     }
 
-    grow() {
-        this.body();
-    }
-
     turnDirection(newDirection) {
 	    const err = 0.0001; // arbitrary error in case of float magic
 	    if (this.direction.plus(newDirection).magnitude() >= err) { // not opposites
@@ -218,6 +214,12 @@ class Snuok {
         let corner = this.body(position, new Vector(0,0));
         corner.addTo(this.container);
         this.corners[position.toString()] = {corner, ttl: this.parts.length};
+    }
+
+    addTailPiece() {
+        let tail = this.body(this.parts[this.parts.length - 1].pos.clone(), new Vector(0, 0));
+        tail.addTo(this.container);
+        this.parts.push(tail);
     }
 
     getPoints() {
@@ -286,6 +288,10 @@ class WrappedSnuok {
                 bindings[evt.keyCode]();
             }
     	})
+    }
+
+    addTailPiece() {
+        this.map(Snuok.prototype.addTailPiece, []);
     }
 
     update(delta) {
@@ -392,10 +398,11 @@ class World {
     }
 
     update(delta) {
-        // TODO improve this... the snake should not be the controller of state
+        // TODO improve this... the snake should not be the controller of state ticks
         let stateTick = this.snuok.update(delta);
         if (stateTick) {
             if (this.snuok.checkCollides(this.apple.getHitBox(), 0)) {
+                this.snuok.addTailPiece();
                 this.apple.destroy();
                 this.apple = this.createApple();
             }
