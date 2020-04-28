@@ -44,7 +44,7 @@ PIXI.loader
 
 function setup() {
     let len = 4;
-    let lerp_time = 15;
+    let lerp_time = 13;
     /*let instructions = [
         'up',
         'wait',
