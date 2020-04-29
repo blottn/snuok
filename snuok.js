@@ -213,6 +213,11 @@ class Snuok {
         let tail = this.body(this.parts[this.parts.length - 1].pos.clone(), new Vector(0, 0));
         tail.addTo(this.container);
         this.parts.push(tail);
+
+        // increase ttl on corners!
+        for (let k in this.corners) {
+            this.corners[k].ttl += 1;
+        }
     }
 
     getPoints() {
