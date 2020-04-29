@@ -43,7 +43,7 @@ PIXI.loader
   .load(setup);
 
 function setup() {
-    let len = 4;
+    let len = 18;
     let lerp_time = 13;
     /*let instructions = [
         'up',
@@ -158,13 +158,6 @@ class Snuok {
                 delete this.corners[k];
             }
         }
-
-        // check for collisions
-        let collided = this.checkCollisions();
-        if (collided) {
-            this.dead = true;
-            window.ghostTyper.display("Uh-Oh! You died :/");
-        }
     }
     
     outOfBounds() {
@@ -243,7 +236,7 @@ class WrappedSnuok {
         this.DOWN = this.down.bind(this);
         this.LEFT = this.left.bind(this);
         this.RIGHT = this.right.bind(this);
-
+        this.dead = false;
         this.replicas = {
             centre: new Snuok(container, start, len, speed),
             left: new Snuok(container, start.plus(this.LEFT_OFFSET),
@@ -295,15 +288,31 @@ class WrappedSnuok {
     }
 
     update(delta) {
-        let states = this.map(Snuok.prototype.update, [delta])
-        if (states[0]) {
-            this.stateTick();
+        if (!this.dead) {
+            let states = this.map(Snuok.prototype.update, [delta])
+            if (states[0]) {
+                this.stateTick();
+            }
+            return states[0];
         }
-        return states[0];
+        return undefined;
     }
 
     stateTick() {
         this.checkWrap();
+        let head = this.replicas.centre.getHitBox();
+        let collision = this.map(Snuok.prototype.checkCollides, [head])
+            .reduce((acc, next) => {
+                if (acc) {
+                    return acc;
+                }
+                return next;
+            });
+
+        if (collision) {
+            this.dead = true;
+            window.ghostTyper.display("Uh-Oh! You died :/");
+        }
     }
 
     checkCollides(point, startFrom=1) {
