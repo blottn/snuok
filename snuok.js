@@ -1,83 +1,8 @@
-const MAP_WIDTH = 20;
-const MAP_HEIGHT = 20;
-const BLOCK = 24;
-const WIDTH = MAP_WIDTH * BLOCK;
-const HEIGHT = MAP_HEIGHT * BLOCK;
-
-let worldConfig = {MAP_WIDTH, MAP_HEIGHT, BLOCK};
-
-/*const filterCode = `void main(void) {
-   gl_FragColor = vec4(0.0, 1.0, 0.0, 1.0);
-}`;
-
-let coloredFilter = new PIXI.Filter(null, filterCode); Keeping this cause im bad at remembering stuff*/
-
-
-let app = new PIXI.Application({
-    width: WIDTH,
-    height: HEIGHT,
-    antialias: true,
-    transparent: false,
-    resolution: 1,
-});
-
-app.renderer.backgroundColor = "0xf4f4f4";
-app.stage.sortableChildren = true;
-
-$(document).ready(() => {
-    $(".root")[0].appendChild(app.view);
-    let typingElement = $("#ghost-anchor")[0]
-    window.ghostTyper = new Ghost(typingElement);
-})
-
-
-// load sprites!
-PIXI.loader
-  .add([
-      "apple.png",
-	  "wall.png",
-	  "snuok_body.png",
-	  "snuok_head_pink.png",
-	  "snuok_head_orange.png",
-  ])
-  .load(setup);
-
-function setup() {
-    let len = 18;
-    let lerp_time = 13;
-    /*let instructions = [
-        'up',
-        'wait',
-        'wait',
-        'left',
-        'down',
-        'wait',
-        'wait',
-        'right'
-    ];*/
-	snuok = new WrappedSnuok(app.stage, new Vector(18,0), len, lerp_time);
-	snuok.bindKeys({
-		'w': snuok.UP,
-		's': snuok.DOWN,
-		'a': snuok.LEFT,
-		'd': snuok.RIGHT,
-        37 : snuok.LEFT,
-        38 : snuok.UP,
-        39 : snuok.RIGHT,
-        40 : snuok.DOWN,
-	})
-
-	let world = new World(app.stage, worldConfig, snuok);
-
-	app.ticker.add(step.bind({}, world))
-}
-
-function step(world, delta) {
-    world.update(delta);
-}
+import { Vector } from './vector.js';
+import { SimpleEntity } from './entity.js';
 
 // Helper for Snuok constructor
-function createPart(zIndex, imageName, pos, direction) {
+function createPart(worldConfig, zIndex, imageName, pos, direction) {
     let sprite = new PIXI.Sprite(
         PIXI.loader.resources[imageName].texture
     );
@@ -85,8 +10,8 @@ function createPart(zIndex, imageName, pos, direction) {
     return new SimpleEntity(worldConfig, sprite, pos, direction);
 }
 
-class Snuok {
-    constructor (container, start, len, speed) { // not sure this needs to read the app state
+export class Snuok {
+    constructor (container, worldConfig, start, len, speed) { // not sure this needs to read the app state
         this.container = container;
         this.speed = speed;
         this.lerpProgress = 0;
@@ -94,8 +19,8 @@ class Snuok {
 	    this.direction = new Vector(1,0);
 	    this.nextDirection = this.direction;
 
-        this.head = createPart.bind({}, 100, "snuok_head_pink.png")
-        this.body = createPart.bind({}, 50, "snuok_body.png")
+        this.head = createPart.bind({}, worldConfig, 100, "snuok_head_pink.png")
+        this.body = createPart.bind({}, worldConfig, 50, "snuok_body.png")
 
         this.corners = {};
         this.parts = [
@@ -225,8 +150,8 @@ class Snuok {
     }
 }
 
-class WrappedSnuok {
-    constructor(container, start, len, speed) {
+export class WrappedSnuok {
+    constructor(container, worldConfig, start, len, speed) {
         this.LEFT_OFFSET = new Vector(-worldConfig.MAP_WIDTH, 0);
         this.RIGHT_OFFSET = new Vector(worldConfig.MAP_WIDTH, 0);
         this.UP_OFFSET = new Vector(0, -worldConfig.MAP_HEIGHT);
@@ -243,22 +168,22 @@ class WrappedSnuok {
         this.RIGHT = this.right.bind(this);
         this.dead = false;
         this.replicas = {
-            centre: new Snuok(container, start, len, speed),
-            left: new Snuok(container, start.plus(this.LEFT_OFFSET),
+            centre: new Snuok(container, worldConfig, start, len, speed),
+            left: new Snuok(container, worldConfig, start.plus(this.LEFT_OFFSET),
                             len, speed),
-            right: new Snuok(container, start.plus(this.RIGHT_OFFSET),
+            right: new Snuok(container, worldConfig, start.plus(this.RIGHT_OFFSET),
                              len, speed),
-            up: new Snuok(container, start.plus(this.UP_OFFSET),
+            up: new Snuok(container, worldConfig, start.plus(this.UP_OFFSET),
                           len, speed),
-            down: new Snuok(container, start.plus(this.DOWN_OFFSET),
+            down: new Snuok(container, worldConfig, start.plus(this.DOWN_OFFSET),
                             len, speed),
-            upRight: new Snuok(container, start.plus(this.UPRIGHT_OFFSET),
+            upRight: new Snuok(container, worldConfig, start.plus(this.UPRIGHT_OFFSET),
                                len, speed),
-            upLeft: new Snuok(container, start.plus(this.UPLEFT_OFFSET),
+            upLeft: new Snuok(container, worldConfig, start.plus(this.UPLEFT_OFFSET),
                                len, speed),
-            downRight: new Snuok(container, start.plus(this.DOWNRIGHT_OFFSET),
+            downRight: new Snuok(container, worldConfig, start.plus(this.DOWNRIGHT_OFFSET),
                                len, speed),
-            downLeft: new Snuok(container, start.plus(this.DOWNLEFT_OFFSET),
+            downLeft: new Snuok(container, worldConfig, start.plus(this.DOWNLEFT_OFFSET),
                                len, speed),
         };
     }
@@ -368,72 +293,5 @@ class WrappedSnuok {
 
     getPoints() {
         return this.map(Snuok.prototype.getPoints, []).flat();
-    }
-}
-
-class World {
-    constructor(container, worldConfig, snuok, seed) {
-        this.container = container;
-        this.worldConfig = worldConfig;
-        this.snuok = snuok;
-        this.seed = seed;
-
-        this.snuok.addTo(container);
-        if (this.seed == undefined) {
-            this.seed = Math.floor(Math.random() * 1000000);     
-        }
-
-        this.apple = this.createApple();
-    }
-
-    random() {
-        let x = Math.sin(this.seed++) * 1000000;
-        return x - Math.floor(x);
-    }
-
-    createApple() {
-        let possibilities = [];
-        for (let i = 0; i < this.worldConfig.MAP_WIDTH ; i++) {
-            for (let j = 0; j < this.worldConfig.MAP_HEIGHT ; j++) {
-                possibilities.push(`${i}.${j}`);
-            }
-        }
-        let consumedPoints = this.snuok.getPoints();
-        
-        possibilities = possibilities.filter(x => {
-            return !this.snuok.getPoints().includes(x)
-        });
-        
-        let choice = Math.floor(this.random() * possibilities.length);
-        let pos = possibilities[choice].split('.').map((x) => {
-            return parseInt(x);
-        });
-        return new Apple(this.container, worldConfig, new Vector(pos[0], pos[1]));
-    }
-
-    update(delta) {
-        // TODO improve this... the snake should not be the controller of state ticks
-        let stateTick = this.snuok.update(delta);
-        if (stateTick) {
-            if (this.snuok.checkCollides(this.apple.getHitBox(), 0)) {
-                this.snuok.addTailPiece();
-                this.apple.destroy();
-                this.apple = this.createApple();
-            }
-            this.apple.stateTick();
-        }
-    }
-}
-
-class Apple extends SimpleEntity {
-    constructor(container, worldConfig, position) {
-        let sprite = new PIXI.Sprite(
-            PIXI.loader.resources["apple.png"].texture
-        );
-        super(worldConfig, sprite, position, new Vector(0,0));
-        this.addTo(container);
-    }
-
-    stateTick() {
     }
 }

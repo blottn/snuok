@@ -1,4 +1,6 @@
-class ScriptedSnuok extends WrappedSnuok {
+import { WrappedSnuok } from 'snuok';
+
+export class ScriptedSnuok extends WrappedSnuok {
     constructor(app, start, len, speed, script) {
         super(app, start, len, speed);
         this.script = script;

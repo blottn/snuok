@@ -1,4 +1,6 @@
-class Lerper {
+import { Vector } from './vector.js';
+
+export class Lerper {
     constructor(pos, dest) {
         this.pos = pos;
         this.dest = dest;
@@ -36,7 +38,7 @@ class Lerper {
 
 }
 
-class DirectionLerper extends Lerper {
+export class DirectionLerper extends Lerper {
     constructor(pos, direction) {
         super(pos, pos.plus(direction));
         this.direction = direction;
@@ -48,7 +50,7 @@ class DirectionLerper extends Lerper {
     }
 }
 
-class SimpleEntity extends DirectionLerper {
+export class SimpleEntity extends DirectionLerper {
     constructor(worldConfig, sprite, start, direction) {
         super(start, direction);
         this.sprite = sprite;
