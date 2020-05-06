@@ -1,5 +1,20 @@
 import { Vector } from './vector.js';
 import { SimpleEntity } from './entity.js';
+import { SlideFilter } from './filter.js';
+
+const filterCode = `void main(void) {
+   gl_FragColor = vec4(0.0, 1.0, 0.0, 1.0);
+}`;
+
+const vertSlide = `
+attribute vec2 aVertexPosition;
+
+void main(void) {
+    gl_Position = vec4(aVertexPosition.x, aVertexPosition.y,0,0);
+}`;
+
+let slideFilter = new SlideFilter();
+
 
 // Helper for Snuok constructor
 function createPart(worldConfig, zIndex, imageName, pos, direction) {
@@ -7,6 +22,7 @@ function createPart(worldConfig, zIndex, imageName, pos, direction) {
         PIXI.loader.resources[imageName].texture
     );
     sprite.zIndex = zIndex;
+    sprite.filters = [slideFilter];
     return new SimpleEntity(worldConfig, sprite, pos, direction);
 }
 
