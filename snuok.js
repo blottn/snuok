@@ -2,27 +2,12 @@ import { Vector } from './vector.js';
 import { SimpleEntity } from './entity.js';
 import { SlideFilter } from './filter.js';
 
-const filterCode = `void main(void) {
-   gl_FragColor = vec4(0.0, 1.0, 0.0, 1.0);
-}`;
-
-const vertSlide = `
-attribute vec2 aVertexPosition;
-
-void main(void) {
-    gl_Position = vec4(aVertexPosition.x, aVertexPosition.y,0,0);
-}`;
-
-let slideFilter = new SlideFilter();
-
-
 // Helper for Snuok constructor
 function createPart(worldConfig, zIndex, imageName, pos, direction) {
     let sprite = new PIXI.Sprite(
         PIXI.loader.resources[imageName].texture
     );
     sprite.zIndex = zIndex;
-    sprite.filters = [slideFilter];
     return new SimpleEntity(worldConfig, sprite, pos, direction);
 }
 
@@ -47,6 +32,8 @@ export class Snuok {
                                 this.direction);
             this.parts.push(ent);
         }
+
+        this.filters = [];
     }
 
     addTo(parent) {
@@ -146,12 +133,14 @@ export class Snuok {
 
     addCornerAt(position) {
         let corner = this.body(position, new Vector(0,0));
+        corner.sprite.filters = this.filters;
         corner.addTo(this.container);
         this.corners[position.toString()] = {corner, ttl: this.parts.length};
     }
 
     addTailPiece() {
         let tail = this.body(this.parts[this.parts.length - 1].pos.clone(), new Vector(0, 0));
+        tail.sprite.filters = this.filters;
         tail.addTo(this.container);
         this.parts.push(tail);
 
@@ -163,6 +152,17 @@ export class Snuok {
 
     getPoints() {
         return this.parts.map((point) => point.pos.toString());
+    }
+
+    applyFilters(filters) {
+        this.filters = filters;
+        for (let i = 0; i < this.parts.length ; i++) {
+            this.parts[i].sprite.filters = filters;
+        }
+        for (let k in this.corners) {
+            this.corners[k].sprite.filters = filters;
+        }
+        return this.parts.map((part) => part.sprite.filters = filters);
     }
 }
 
@@ -309,5 +309,9 @@ export class WrappedSnuok {
 
     getPoints() {
         return this.map(Snuok.prototype.getPoints, []).flat();
+    }
+
+    applyFilters(filters) {
+        return this.map(Snuok.prototype.applyFilters, [filters]);
     }
 }

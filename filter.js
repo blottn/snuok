@@ -1,4 +1,4 @@
-const slideFilter = `
+const slideShader = `
 attribute vec2 aVertexPosition;
 
 uniform mat3 projectionMatrix;
@@ -11,7 +11,7 @@ uniform vec4 outputFrame;
 vec4 filterVertexPosition( void )
 {
     vec2 position = aVertexPosition * max(outputFrame.zw, vec2(0.)) + outputFrame.xy;
-    position.y = position.y + sin((1.0 - (position.x / 500.0)) * 2.0 * 3.141) * 15.0;
+    position.y = position.y + sin((1.0 - (position.x / 500.0)) * 2.0 * 3.141) * 40.0;
 
     return vec4((projectionMatrix * vec3(position, 1.0)).xy, 0.0, 1.0);
 }
@@ -30,6 +30,6 @@ void main(void)
 
 export class SlideFilter extends PIXI.Filter {
     constructor() {
-        super(slideFilter, null);
+        super(slideShader, null);
     }
 }

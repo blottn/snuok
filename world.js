@@ -53,6 +53,11 @@ export class World {
             this.apple.stateTick();
         }
     }
+
+    applyFilters(filters) {
+        this.snuok.applyFilters(filters);
+        this.apple.applyFilters(filters);
+    }
 }
 
 export class Apple extends SimpleEntity {
@@ -64,6 +69,9 @@ export class Apple extends SimpleEntity {
         this.addTo(container);
     }
 
-    stateTick() {
+    applyFilters(filters) {
+        this.sprite.filters = filters;
     }
+
+    stateTick() {}
 }
