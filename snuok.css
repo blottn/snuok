@@ -26,3 +26,26 @@
     display: flex;
     justify-content: space-around;
 }
+
+.root-left {
+    flex: 1 0;
+}
+
+.root-right {
+    flex: 1 0;
+}
+
+.root-center {
+    flex: 1 0;
+}
+
+.control-panel {
+    margin: 24px;
+    border: deeppink 1px solid;
+    border-radius: 16px;
+}
+
+.control-panel-title {
+    width: 100%;
+    text-align: center;
+}

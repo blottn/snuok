@@ -30,7 +30,7 @@ app.renderer.backgroundColor = "0xf4f4f4";
 app.stage.sortableChildren = true;
 
 $(document).ready(() => {
-    $(".root")[0].appendChild(app.view);
+    $("#root-center")[0].appendChild(app.view);
     let typingElement = $("#ghost-anchor")[0]
     window.ghostTyper = new Ghost(typingElement);
 })
