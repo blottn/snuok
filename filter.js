@@ -1,35 +1,22 @@
-const slideShader = `
-attribute vec2 aVertexPosition;
-
-uniform mat3 projectionMatrix;
-
+function slideFragmentShader(phaseScale, heightScale) {
+    let phaseString = phaseScale.toFixed(2);
+    let heightString = heightScale.toFixed(2);
+    return `
 varying vec2 vTextureCoord;
 
-uniform vec4 inputSize;
-uniform vec4 outputFrame;
+uniform sampler2D uSampler;
 
-vec4 filterVertexPosition( void )
-{
-    vec2 position = aVertexPosition * max(outputFrame.zw, vec2(0.)) + outputFrame.xy;
-    position.y = position.y + sin((1.0 - (position.x / 500.0)) * 2.0 * 3.141) * 40.0;
-
-    return vec4((projectionMatrix * vec3(position, 1.0)).xy, 0.0, 1.0);
-}
-
-vec2 filterTextureCoord( void )
-{
-    return aVertexPosition * (outputFrame.zw * inputSize.zw);
-}
-
-void main(void)
-{
-    gl_Position = filterVertexPosition();
-    vTextureCoord = filterTextureCoord();
+void main(void){
+    vec2 sampleCoord = vTextureCoord;
+    sampleCoord.y = sampleCoord.y + sin((sampleCoord.x * 6.283) / ${phaseString}) / ${heightString} ;
+    gl_FragColor = texture2D(uSampler, sampleCoord);
 }
 `
+}
+
 
 export class SlideFilter extends PIXI.Filter {
-    constructor() {
-        super(slideShader, null);
+    constructor(phaseScale = 1.0, heightScale = 5.0) {
+        super(undefined, slideFragmentShader(phaseScale, heightScale))
     }
 }

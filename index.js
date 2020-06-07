@@ -11,12 +11,7 @@ const HEIGHT = MAP_HEIGHT * BLOCK;
 
 let worldConfig = {MAP_WIDTH, MAP_HEIGHT, BLOCK};
 
-/*const filterCode = `void main(void) {
-   gl_FragColor = vec4(0.0, 1.0, 0.0, 1.0);
-}`;
-
-let coloredFilter = new PIXI.Filter(null, filterCode); Keeping this cause im bad at remembering stuff*/
-
+PIXI.settings.WRAP_MODE = PIXI.WRAP_MODES.REPEAT;
 
 let app = new PIXI.Application({
     width: WIDTH,
@@ -60,13 +55,12 @@ function setup() {
         'wait',
         'right'
     ];*/
-
-	let snuok = new WrappedSnuok(app.stage, worldConfig, new Vector(18,0), len, lerp_time);
+    let snuok = new WrappedSnuok(app.stage, worldConfig, new Vector(18,0), len, lerp_time);
 	snuok.bindKeys({
-		'w': snuok.UP,
-		's': snuok.DOWN,
-		'a': snuok.LEFT,
-		'd': snuok.RIGHT,
+	    'w': snuok.UP,
+	    's': snuok.DOWN,
+	    'a': snuok.LEFT,
+	    'd': snuok.RIGHT,
         37 : snuok.LEFT,
         38 : snuok.UP,
         39 : snuok.RIGHT,
@@ -74,11 +68,12 @@ function setup() {
 	})
 
 	let world = new World(app.stage, worldConfig, snuok);
-    world.applyFilters([new SlideFilter()]);
+    app.stage.filters = [ new SlideFilter() ];
 	app.ticker.add(step.bind({}, world))
 }
 
 function step(world, delta) {
+
     world.update(delta);
 }
 
