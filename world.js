@@ -6,9 +6,9 @@ export class World {
         this.container = container;
         this.worldConfig = worldConfig;
         this.snuok = snuok;
-        this.seed = seed;
-
         this.snuok.addTo(container);
+
+        this.seed = seed;
         if (this.seed == undefined) {
             this.seed = Math.floor(Math.random() * 1000000);     
         }
