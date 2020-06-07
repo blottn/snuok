@@ -1,10 +1,12 @@
 import { SimpleEntity } from './entity.js';
 import { Vector } from './vector.js';
+import { SlideFilter } from './filter.js';
 
 export class World {
     constructor(container, worldConfig, snuok, seed) {
         this.container = container;
         this.worldConfig = worldConfig;
+        this.filters = [];
         this.snuok = snuok;
         this.snuok.addTo(container);
 
@@ -47,6 +49,7 @@ export class World {
         if (stateTick) {
             if (this.snuok.checkCollides(this.apple.getHitBox(), 0)) {
                 this.snuok.addTailPiece();
+                this.apple.apply(this);
                 this.apple.destroy();
                 this.apple = this.createApple();
             }
@@ -54,9 +57,13 @@ export class World {
         }
     }
 
-    applyFilters(filters) {
-        this.snuok.applyFilters(filters);
-        this.apple.applyFilters(filters);
+    addFilter(filter, timeout) {
+        this.filters.push(filter);
+        setTimeout(() => {
+            this.filters = this.filters.filter(f => f != filter);
+            this.container.filters = this.filters;
+        }, timeout);
+        this.container.filters = this.filters;
     }
 }
 
@@ -69,9 +76,10 @@ export class Apple extends SimpleEntity {
         this.addTo(container);
     }
 
-    applyFilters(filters) {
-        this.sprite.filters = filters;
-    }
-
     stateTick() {}
+
+    // Apply the effect
+    apply(world) {
+        world.addFilter(new SlideFilter(), 5000);
+    }
 }

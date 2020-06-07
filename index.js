@@ -68,7 +68,6 @@ function setup() {
 	})
 
 	let world = new World(app.stage, worldConfig, snuok);
-    app.stage.filters = [ new SlideFilter() ];
 	app.ticker.add(step.bind({}, world))
 }
 
