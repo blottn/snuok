@@ -48,8 +48,15 @@ export class World {
         let stateTick = this.snuok.update(delta);
         if (stateTick) {
             if (this.snuok.checkCollides(this.apple.getHitBox(), 0)) {
+                // eat the apple
                 this.snuok.addTailPiece();
-                this.apple.apply(this);
+
+                let filter = this.apple.getFilter(this);
+                if (filter) {
+                    this.addFilter(filter);
+                }
+                
+                // get new apple
                 this.apple.destroy();
                 this.apple = this.createApple();
             }
@@ -69,6 +76,7 @@ export class World {
 }
 
 export class Apple extends SimpleEntity {
+
     constructor(container, worldConfig, position) {
         let sprite = new PIXI.Sprite(
             PIXI.loader.resources["apple.png"].texture
@@ -80,9 +88,15 @@ export class Apple extends SimpleEntity {
     stateTick() {}
 
     // Apply the effect
-    apply(world) {
-        world.addFilter(new GradientFilter(function(filter) {
-            world.removeFilter(filter);
-        }));
+    getFilter(world) {
+        let roll = Math.random() * 100;
+        let callback = world.removeFilter.bind(world);
+        if (roll > 50) {
+            return new SlideFilter(callback);
+        }
+        if (roll > 25) {
+            return new GradientFilter(callback);
+        }
+        return;
     }
 }
