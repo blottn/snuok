@@ -103,7 +103,7 @@ export class Snuok {
     checkCollides(pos, startFrom=1) { // use startFrom=0 to also check if it overlaps the head
 
         return this.parts
-            .slice(startFrom) // ignore head
+            .slice(startFrom)
             .reduce((collided, part) => {
                 if (collided) {
                     return collided;
