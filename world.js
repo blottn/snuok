@@ -1,6 +1,6 @@
 import { SimpleEntity } from './entity.js';
 import { Vector } from './vector.js';
-import { SlideFilter } from './filter.js';
+import { SlideFilter, GradientFilter } from './filter.js';
 
 export class World {
     constructor(container, worldConfig, snuok, seed) {
@@ -59,10 +59,11 @@ export class World {
 
     addFilter(filter, timeout) {
         this.filters.push(filter);
-        setTimeout(() => {
-            this.filters = this.filters.filter(f => f != filter);
-            this.container.filters = this.filters;
-        }, timeout);
+        this.container.filters = this.filters;
+    }
+
+    removeFilter(filter) {
+        this.filters = this.filters.filter(f => f != filter);
         this.container.filters = this.filters;
     }
 }
@@ -80,6 +81,8 @@ export class Apple extends SimpleEntity {
 
     // Apply the effect
     apply(world) {
-        world.addFilter(new SlideFilter(), 5000);
+        world.addFilter(new GradientFilter(function(filter) {
+            world.removeFilter(filter);
+        }));
     }
 }

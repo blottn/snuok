@@ -10,26 +10,64 @@ export class LerpFilter extends PIXI.Filter {
     }
 }
 
+export class YoyoFilter extends PIXI.Filter {
+    constructor(totalLerpTime, cb, vertex, fragment, uniforms = {}) {
+        super(vertex, fragment, {lerp: 0, ...uniforms});
+        this.progress = 0;
+        PIXI.Ticker.shared.add((delta) => {
+            this.progress += delta;
+            if (this.progress > totalLerpTime) {
+                cb(this);
+                this.progress = totalLerpTime;
+            }
+            this.uniforms.lerp = Math.sin((this.progress / totalLerpTime) * Math.PI);
+        });
+    };
+}
+
 function slideFragmentShader(phaseScale, heightScale) {
     let phaseString = phaseScale.toFixed(2);
     let heightString = heightScale.toFixed(2);
     return `
 varying vec2 vTextureCoord;
 uniform float lerp;
+uniform float phase;
 uniform sampler2D uSampler;
 
 void main(void){
     vec2 sampleCoord = vTextureCoord;
-    sampleCoord.y = sampleCoord.y + lerp * sin((sampleCoord.x * 6.283) / ${phaseString}) / ${heightString} ;
+    sampleCoord.y = sampleCoord.y + lerp * sin(phase + (sampleCoord.x * 6.283) * ${phaseString}) / ${heightString} ;
     gl_FragColor = texture2D(uSampler, sampleCoord);
 }
 `
 }
 
-export class SlideFilter extends LerpFilter {
-    constructor(phaseScale = 1.0, heightScale = 5.0) {
-        super(1000, undefined, slideFragmentShader(phaseScale, heightScale))
+export class SlideFilter extends YoyoFilter {
+    constructor(cb, phaseScale = 1.0, heightScale = 8.0) {
+        super(500, cb ,undefined, slideFragmentShader(phaseScale, heightScale), {phase: Math.random() * Math.PI * 2 })
     }
 }
 
+function gradientFragmentShader() {
+    return `
+varying vec2 vTextureCoord;
+uniform float lerp;
+uniform sampler2D uSampler;
 
+void main(void){
+    vec4 sampledColor = texture2D(uSampler, vTextureCoord);
+    vec4 outputColor = vec4(0.0);
+    outputColor.w = sampledColor.w;
+    outputColor.x = sampledColor.x * sin(lerp * 6.283) + sampledColor.y * sin(lerp* 6.283 + 2.073) + sampledColor.z * sin(lerp * 6.283 + 4.21);
+    outputColor.y = sampledColor.x * sin(lerp * 6.283 + 2.073) + sampledColor.y * sin(lerp* 6.283 + 4.21) + sampledColor.z * sin(lerp * 6.283);
+    outputColor.z = sampledColor.x * sin(lerp * 6.283 + 4.21) + sampledColor.y * sin(lerp* 6.283) + sampledColor.z * sin(lerp * 6.283 + 2.07);
+    gl_FragColor = outputColor;
+
+}
+`;
+}
+export class GradientFilter extends YoyoFilter {
+    constructor(cb) {
+        super(500, cb, undefined, gradientFragmentShader(), {});
+    }
+}
