@@ -50,7 +50,9 @@ export class World {
             if (this.snuok.checkCollides(this.apple.getHitBox(), 0)) {
                 // eat the apple
                 this.snuok.addTailPiece();
-
+                
+                window.scoreTicker
+                    .setValue(window.scoreTicker.value + 10);
                 let filter = this.apple.getFilter(this);
                 if (filter) {
                     this.addFilter(filter);

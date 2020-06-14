@@ -1,3 +1,4 @@
+import { Ticker } from './ticker.js';
 import { WrappedSnuok } from './snuok.js';
 import { Vector } from './vector.js';
 import { World } from './world.js';
@@ -28,6 +29,8 @@ $(document).ready(() => {
     $("#root-center")[0].appendChild(app.view);
     let typingElement = $("#ghost-anchor")[0]
     window.ghostTyper = new Ghost(typingElement);
+    let scoreElement = $("#score")[0];
+    window.scoreTicker = new Ticker(scoreElement);
 })
 
 
