@@ -57,29 +57,29 @@
 
 @font-face {
     font-family: roboto-mono-med;
-    src: url(./fonts/RobotoMono/Medium.ttf);
+    src: url(./fonts/robotomono/Medium.ttf);
 }
 
 
 @font-face {
     font-family: roboto-mono-bold;
-    src: url(./fonts/RobotoMono/Bold.ttf);
+    src: url(./fonts/robotomono/Bold.ttf);
 }
 
 
 @font-face {
     font-family: roboto-mono-light;
-    src: url(./fonts/RobotoMono/Light.ttf);
+    src: url(./fonts/robotomono/Light.ttf);
 }
 
 
 @font-face {
     font-family: roboto-mono-reg;
-    src: url(./fonts/RobotoMono/Regular.ttf);
+    src: url(./fonts/robotomono/Regular.ttf);
 }
 
 
 @font-face {
     font-family: roboto-mono-thin;
-    src: url(./fonts/RobotoMono/Thin.ttf);
+    src: url(./fonts/robotomono/Thin.ttf);
 }
