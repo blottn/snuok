@@ -46,20 +46,20 @@ export class Snuok {
         });
     }
 
-	update(delta) {
+	draw(delta) {
         if (this.dead) {
             return;
         }
-        let updateState = this.updateLerp(delta);
+        let looped = this.updateLerp(delta);
         let lerpFactor = this.lerpProgress / this.speed;
 
-        if (updateState) {
+        if (looped) {
             this.stateTick(lerpFactor)
         }
 
         this.parts.map((part) => part.draw(lerpFactor));
 
-        return updateState;
+        return looped;
 	}
 
     stateTick(lerpFactor) {
@@ -117,11 +117,11 @@ export class Snuok {
 
     updateLerp(delta) {
         this.lerpProgress += delta;
-        let moveToNext = this.lerpProgress > this.speed;
+        let looped = this.lerpProgress > this.speed;
         while (this.lerpProgress > this.speed) {
             this.lerpProgress -= this.speed;
         }
-        return moveToNext;
+        return looped;
     }
 
     turnDirection(newDirection) {
@@ -233,9 +233,9 @@ export class WrappedSnuok {
         this.map(Snuok.prototype.addTailPiece, []);
     }
 
-    update(delta) {
+    draw(delta) {
         if (!this.dead) {
-            let states = this.map(Snuok.prototype.update, [delta])
+            let states = this.map(Snuok.prototype.draw, [delta])
             if (states[0]) {
                 this.stateTick();
             }

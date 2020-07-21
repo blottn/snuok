@@ -75,8 +75,7 @@ function setup() {
 }
 
 function step(world, delta) {
-
-    world.update(delta);
+    world.draw(delta);
 }
 
 

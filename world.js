@@ -43,9 +43,9 @@ export class World {
         return new Apple(this.container, this.worldConfig, new Vector(pos[0], pos[1]));
     }
 
-    update(delta) {
+    draw(delta) {
         // TODO improve this... the snake should not be the controller of state ticks
-        let stateTick = this.snuok.update(delta);
+        let stateTick = this.snuok.draw(delta);
         if (stateTick) {
             if (this.snuok.checkCollides(this.apple.getHitBox(), 0)) {
                 // eat the apple
