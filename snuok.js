@@ -262,7 +262,8 @@ export class WrappedSnuok {
     }
 
     checkCollides(point, startFrom=1) {
-        return this.replicas.centre.checkCollides(point, startFrom);
+        return this.map(Snuok.prototype.checkCollides, [point, startFrom])
+            .reduce((acc, cur) => acc || cur);
     }
 
     checkWrap() {
