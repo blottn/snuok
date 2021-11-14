@@ -1,6 +1,5 @@
 import { Vector } from './vector.js';
 import { SimpleEntity } from './entity.js';
-import { SlideFilter } from './filter.js';
 
 // Helper for Snuok constructor
 function createPart(worldConfig, zIndex, imageName, pos, direction) {

@@ -2,7 +2,6 @@ import { Ticker } from './ticker.js';
 import { WrappedSnuok } from './snuok.js';
 import { Vector } from './vector.js';
 import { World } from './world.js';
-import { SlideFilter } from './filter.js';
 
 const MAP_WIDTH = 20;
 const MAP_HEIGHT = 20;

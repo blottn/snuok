@@ -25,7 +25,7 @@ export class YoyoFilter extends PIXI.Filter {
     };
 }
 
-function slideFragmentShader(phaseScale, heightScale) {
+function ySlideFragmentShader(phaseScale, heightScale) {
     let phaseString = phaseScale.toFixed(2);
     let heightString = heightScale.toFixed(2);
     return `
@@ -42,9 +42,32 @@ void main(void){
 `
 }
 
-export class SlideFilter extends YoyoFilter {
+function xSlideFragmentShader(phaseScale, heightScale) {
+    let phaseString = phaseScale.toFixed(2);
+    let heightString = heightScale.toFixed(2);
+    return `
+varying vec2 vTextureCoord;
+uniform float lerp;
+uniform float phase;
+uniform sampler2D uSampler;
+
+void main(void){
+    vec2 sampleCoord = vTextureCoord;
+    sampleCoord.x = sampleCoord.x + lerp * sin(phase + (sampleCoord.y * 6.283) * ${phaseString}) / ${heightString} ;
+    gl_FragColor = texture2D(uSampler, sampleCoord);
+}
+`
+}
+
+export class YSlideFilter extends YoyoFilter {
     constructor(cb, phaseScale = 1.0, heightScale = 8.0) {
-        super(500, cb ,undefined, slideFragmentShader(phaseScale, heightScale), {phase: Math.random() * Math.PI * 2 })
+        super(500, cb ,undefined, ySlideFragmentShader(phaseScale, heightScale), {phase: Math.random() * Math.PI * 2 })
+    }
+}
+
+export class XSlideFilter extends YoyoFilter {
+    constructor(cb, phaseScale = 1.0, heightScale = 8.0) {
+        super(500, cb ,undefined, xSlideFragmentShader(phaseScale, heightScale), {phase: Math.random() * Math.PI * 2 })
     }
 }
 
