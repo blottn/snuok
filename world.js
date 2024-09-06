@@ -1,6 +1,6 @@
 import { SimpleEntity } from './entity.js';
 import { Vector } from './vector.js';
-import { XSlideFilter, YSlideFilter, GradientFilter } from './filter.js';
+import { XSlideFilter, YSlideFilter, GradientFilter, SwizzleFilter } from './filter.js';
 
 export class World {
     constructor(container, worldConfig, snuok, seed) {
@@ -99,8 +99,11 @@ export class Apple extends SimpleEntity {
         if (roll > 40) {
             return new YSlideFilter(callback);
         }
-        if (roll > 10) {
+        if (roll > 20) {
             return new GradientFilter(callback);
+        }
+        if (roll > 10) {
+          return new SwizzleFilter(callback);
         }
         return;
     }

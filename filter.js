@@ -94,3 +94,32 @@ export class GradientFilter extends YoyoFilter {
         super(500, cb, undefined, gradientFragmentShader(), {});
     }
 }
+
+function swizzleFragmentShader(maxRot, maxLengthRot) {
+  return `
+varying vec2 vTextureCoord;
+uniform float lerp;
+uniform sampler2D uSampler;
+
+void main(void){
+  vec2 centered = (vTextureCoord * 2.0) - 1.0;
+  float l = length(centered);
+
+  // length based bump
+  float max_bump = ${maxLengthRot}; // roughly 45degrees
+  float length_bump = lerp * max_bump * sin(l * 2.0 * 3.141);
+
+  float theta = atan(centered.y, centered.x) + lerp * ${maxRot};
+  theta = theta + length_bump;
+  vec2 mapped = vec2(l * cos(theta), l * sin(theta));
+  vec2 samplePoint = (mapped + 1.0) / 2.0;
+  gl_FragColor = texture2D(uSampler, samplePoint);
+}
+`;
+}
+
+export class SwizzleFilter extends YoyoFilter {
+  constructor(cb) {
+    super(500, cb, undefined, swizzleFragmentShader(Math.PI / 2.0, Math.PI / 4.0), {});
+  }
+}
