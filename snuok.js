@@ -243,7 +243,7 @@ export class WrappedSnuok {
         return undefined;
     }
 
-    stateTick() {
+    async stateTick() {
         this.checkWrap();
         let head = this.replicas.centre.getHitBox();
         let collision = this.map(Snuok.prototype.checkCollides, [head])
@@ -256,7 +256,12 @@ export class WrappedSnuok {
 
         if (collision) {
             this.dead = true;
-            window.ghostTyper.display("Uh-Oh! You died :/");
+            await window.ghostTyper.display("Uh-Oh! You died :/");
+            await new Promise((r) => setTimeout(r, 500));
+            await window.taunter.display("Had enough?");
+            await new Promise((r) => setTimeout(r, 500));
+            window.resign.display("Yeah :'(");
+            window.retry.display("Hell naw!");
         }
     }
 

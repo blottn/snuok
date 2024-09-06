@@ -30,6 +30,9 @@ $(document).ready(() => {
     window.ghostTyper = new Ghost(typingElement);
     let scoreElement = $("#score")[0];
     window.scoreTicker = new Ticker(scoreElement);
+    window.taunter = new Ghost($("#taunter")[0]);
+    window.resign = new Ghost($("#taunt-resign")[0]);
+    window.retry = new Ghost($("#taunt-continue")[0]);
 })
 
 

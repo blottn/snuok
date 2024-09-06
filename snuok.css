@@ -34,6 +34,7 @@
 
 .root-right {
     flex: 1 0;
+    display: flex
 }
 
 .root-center {
@@ -53,6 +54,16 @@
 
 .score {
     font-family: roboto-mono-reg;
+}
+
+.retry {
+    font-family: roboto-mono-reg;
+    flex-direction: column;
+}
+
+.retry-opts {
+  display: flex;
+  justify-content: space-between;
 }
 
 @font-face {
